@@ -33,6 +33,16 @@ def login_is_required(function):
 
     return wrapper
 
+def universal_login_condition():
+    try:
+        if 'google_id' in session:
+            return redirect('/login_via_google')
+        elif 'non_google_id' in session:
+            return redirect('/welcome')
+    except:
+        return False
+
+    return True
 
 @app.route("/login_via_google")  
 def login_via_google():
@@ -83,7 +93,8 @@ def logout():
 @app.route("/")  
 def index():
     context = {
-        "login_via_google": "http://127.0.0.1:5000/login_via_google"
+        "login_via_google": "http://127.0.0.1:5000/login_via_google",
+        "login via POST": "http://127.0.0.1:5000/login" 
     }
     return jsonify(context)
 
@@ -91,13 +102,7 @@ def index():
 @app.route("/protected_area")  
 @login_is_required
 def protected_area():
-    context = {
-        "first_name": session['given_name'],
-        "last_name": session['family_name'],
-        "email": session['email'],
-        "logout": "http://127.0.0.1:5000/logout" 
-    }
-    return jsonify(context) 
+    return redirect('/welcome')
 
 def writeRegister(fname, lname, email, pwd):
     try: 
@@ -171,13 +176,7 @@ def login():
                 session['family_name'] = data['last_name']
                 session['email'] = data['email']
                 session['non_google_id'] = True
-                context = {
-                    "first_name": session['given_name'],
-                    "last_name": session['family_name'],
-                    "email": session['email'],
-                    "logout": "http://127.0.0.1:5000/logout" 
-                }
-                return jsonify(context) 
+                return redirect('/welcome')
             else:
                 context = {
                     "message": "User password is invalid!",
@@ -200,14 +199,77 @@ def login():
 
 @app.route('/welcome', methods=["GET", "POST"])
 def welcome():
-    context = {
-        "first_name": session['given_name'],
-        "last_name": session['family_name'],
-        "email": session['email'],
-        "logout": "http://127.0.0.1:5000/logout" 
-    }
-    return jsonify(context) 
+    if universal_login_condition():
+        data = db.collection(u'users').document(session['email']).get().to_dict()
+        if not data:
+            return redirect('/logout')
+        
+        if 'age' not in data.keys() or 'education' not in data.keys():
+            return redirect('/personalInformation')
+        
+        session['age'] = data['age']
+        session['education'] = data['education']
 
+        context = {
+            "first_name": session['given_name'],
+            "last_name": session['family_name'],
+            "email": session['email'],
+            "age": session['age'],
+            "education": session['education'],
+            "logout": "http://127.0.0.1:5000/logout" 
+        }
+        return jsonify(context)
+    else:
+        return redirect('/') 
+
+def writePersonalInformation(age, education):
+    try: 
+        doc_ref = db.collection(u'users').document(session['email'])
+        doc_ref.set({
+            u'age': age,
+            u'education': education
+        }, merge=True)
+        return True
+    except:
+        return False    
+
+@app.route("/personalInformation", methods=['GET', 'POST'])
+def personalInformation():
+    if universal_login_condition():
+
+        if request.method == "POST":
+            
+            age = request.args.get('age')
+            education = request.args.get('education')
+
+            if not age or not education:
+                context = {
+                    "message": "Please add personal information via POST to proceed!",
+                    "logout": "http://127.0.0.1:5000/logout" ,
+                    "main_page": "http://127.0.0.1:5000" 
+                }
+                return jsonify(context)
+
+            if writePersonalInformation(age, education):
+                return redirect('/welcome')
+            
+            else:
+                context = {
+                    "error": "Personal information could not be added! Please logout and retry!",
+                    "logout": "http://127.0.0.1:5000/logout" ,
+                    "main_page": "http://127.0.0.1:5000" 
+                }
+
+        else:
+            context = {
+                "message": "Please add personal information via POST to proceed!",
+                "logout": "http://127.0.0.1:5000/logout" ,
+                "main_page": "http://127.0.0.1:5000" 
+            }
+            return jsonify(context)
+        
+    else:
+        return redirect('/')
 
 if __name__ == "__main__": 
     app.run(debug=True)
