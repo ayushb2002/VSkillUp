@@ -8,6 +8,9 @@ from pip._vendor import cachecontrol
 import google.auth.transport.requests
 from google.cloud import firestore
 from flask_bcrypt import Bcrypt
+import tensorflow as tf
+import tensorflow_hub as hub
+import numpy as np
 
 app = Flask(__name__) 
 bcrypt = Bcrypt(app) 
@@ -102,6 +105,10 @@ def index():
 @app.route("/protected_area")  
 @login_is_required
 def protected_area():
+    doc_ref = db.collection(u'users').document(session['email']).get().to_dict()
+    if doc_ref is None:
+        writeRegister(session['given_name'], session['family_name'], session['email'], bcrypt.generate_password_hash("auth-via-google"))
+
     return redirect('/welcome')
 
 def writeRegister(fname, lname, email, pwd):
@@ -209,6 +216,11 @@ def welcome():
         
         session['age'] = data['age']
         session['education'] = data['education']
+        
+        if 'level' not in data.keys():
+            return redirect('/level')
+        
+        session['level'] = data['level']
 
         context = {
             "first_name": session['given_name'],
@@ -216,6 +228,7 @@ def welcome():
             "email": session['email'],
             "age": session['age'],
             "education": session['education'],
+            "level": session['level'],
             "logout": "http://127.0.0.1:5000/logout" 
         }
         return jsonify(context)
@@ -270,6 +283,155 @@ def personalInformation():
         
     else:
         return redirect('/')
+
+def suggest_level():
+    ageRange = ['Below 18', 'Between 18 to 40', 'Above 40']
+    educationRange = ['Kindergarten', 'Primary School', 'Secondary School', 'Graduate', 'Post Graduate']
+    
+    combinations = {
+        "Beginner": [(ageRange[0], educationRange[0]), (ageRange[0], educationRange[1]), (ageRange[1], educationRange[0]), (ageRange[2], educationRange[0])],
+        "Intermediate": [(ageRange[0], educationRange[2]), (ageRange[0], educationRange[3]), (ageRange[1], educationRange[1]), (ageRange[1], educationRange[2]), (ageRange[2], educationRange[1]), (ageRange[2], educationRange[2])],
+        "Advance": [(ageRange[1], educationRange[3]), (ageRange[1], educationRange[4]), (ageRange[0], educationRange[4]), (ageRange[2], educationRange[3]), (ageRange[2], educationRange[4])]
+    }
+
+    if int(session['age']) < 18:
+        age = ageRange[0]
+    elif int(session['age']) >= 18 and int(session['age']) <40:
+        age = ageRange[1]
+    else:
+        age = ageRange[2]
+
+    education = session['education']
+    
+    pair = (age, education)
+    for key, value in combinations.items():
+        if pair in value:
+            return key
+    
+    return 'Beginner'
+
+@app.route('/level', methods=["GET", "POST"])
+def level():
+    if universal_login_condition():
+        if request.method == "POST":
+            level = request.args.get('level')
+
+            if not level:
+                context = {
+                    "message": "Please add level via POST to proceed!",
+                    "logout": "http://127.0.0.1:5000/logout" ,
+                    "main_page": "http://127.0.0.1:5000" 
+                }
+                return jsonify(context)
+
+            try:
+                doc_ref = db.collection(u'users').document(session['email'])
+                doc_ref.set({
+                    u'level': level,
+                }, merge=True)
+
+                return redirect('/welcome')
+            except:
+                context={
+                    "error": "Could not write level!"
+                }
+                return jsonify(context)
+        else:
+            if 'level' in session:
+                your_level = session['level']
+            suggested_level = suggest_level()
+            context = {
+                "your-level": your_level,
+                "suggested-level": suggested_level,
+                "apply-suggested-level": f"http://127.0.0.1:5000/level?level={suggested_level}"
+            }
+            return jsonify(context)
+    else:
+        return redirect('/')
+
+@app.route('/deleteAccount/<email>', methods=["GET", "POST"])
+def deleteAccount(email):
+    if universal_login_condition():
+        if 'email' in session:
+            if session['email'] == email:
+                if request.method == "POST":
+                    pwd = request.args.get('password')
+                    data = db.collection(u'users').document(email).get().to_dict()
+                    if not data:
+                        context = {"error": "User does not exist!"}
+                        return jsonify(context)
+                    
+                    if bcrypt.check_password_hash(data['password'], pwd):
+                        try:
+                            db.collections(u'users').document(email).delete()
+                            return redirect('/logout')
+                        except:
+                            context = {"error": "Database service is down at the moment!"}
+                            return jsonify(context)
+                    else:
+                        context = {"error": "Wrong password input!"}
+                        return jsonify(context)
+                else:
+                    context = {
+                        "message": "To delete your account, send a POST request with your password!",
+                        "logout": "http://127.0.0.1:5000/logout",
+                        "main_page": "http://127.0.0.1:5000" 
+                    }
+                    return jsonify(context)
+
+            else:
+                context = {
+                    "error": "User email address does not match!"
+                }
+        else:
+            redirect('/logout')
+    else:
+        return redirect('/')
+
+def sentence_matching(query):
+    tf.compat.v1.disable_eager_execution()
+    def embed_useT(module):
+        with tf.Graph().as_default():
+            sentences = tf.compat.v1.placeholder(tf.string)
+            embed = hub.Module(module)
+            embeddings = embed(sentences)
+            session = tf.compat.v1.train.MonitoredSession()
+        return lambda x: session.run(embeddings, {sentences: x})
+    embed_fn = embed_useT('model')
+    encoding_matrix = embed_fn(query)
+    return np.inner(encoding_matrix, encoding_matrix)
+
+@app.route('/compareSentences', methods=["GET", "POST"])
+def compareSentences():
+    if universal_login_condition():
+        if request.method == "POST":
+            word = request.args.get('word')
+            input = request.args.get('sentence')
+            api = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
+            r = requests.get(url=api)
+            meaningDict = r.json()
+            meaning = [input]
+            for objects in meaningDict[0]['meanings'][0]['definitions']:
+                meaning.append(objects['definition'])
+
+            corr_mat = sentence_matching(meaning)
+            result = corr_mat[0][:]
+            context = {}
+            for i in range(1, len(meaning)):
+                context[meaning[i]] = str(result[i])
+
+            print(context)
+
+            return jsonify(context)
+        else:
+            context = {
+                "message": "To compare sentences, send a POST request",
+                "logout": "http://127.0.0.1:5000/logout",
+                "main_page": "http://127.0.0.1:5000" 
+            }
+    else:
+        return redirect('/')
+
 
 if __name__ == "__main__": 
     app.run(debug=True)
