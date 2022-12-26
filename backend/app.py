@@ -11,6 +11,7 @@ from flask_bcrypt import Bcrypt
 import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
+import pandas as pd
 
 app = Flask(__name__) 
 bcrypt = Bcrypt(app) 
@@ -20,6 +21,8 @@ os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 client_secrets_file = os.path.join(pathlib.Path(__file__).parent, "client-secret.json")  
 db = firestore.Client(project='vskillup')
+
+words = pd.read_csv("model/words.csv")
 
 flow = Flow.from_client_secrets_file(
     client_secrets_file=client_secrets_file,
@@ -424,13 +427,16 @@ def compareSentences():
 
             return jsonify(context)
         else:
+            word = words.sample()
             context = {
-                "message": "To compare sentences, send a POST request",
+                "word": str(word).split(' ')[-1],
                 "logout": "http://127.0.0.1:5000/logout",
                 "main_page": "http://127.0.0.1:5000" 
             }
+            return jsonify(context)
     else:
         return redirect('/')
+
 
 
 if __name__ == "__main__": 
