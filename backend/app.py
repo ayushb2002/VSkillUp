@@ -12,6 +12,8 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
 import pandas as pd
+from pytz import timezone 
+from datetime import datetime, timedelta
 
 app = Flask(__name__) 
 bcrypt = Bcrypt(app) 
@@ -318,7 +320,7 @@ def level():
     if universal_login_condition():
         if request.method == "POST":
             level = request.args.get('level')
-
+            level.capitalize()
             if not level:
                 context = {
                     "message": "Please add level via POST to proceed!",
@@ -404,32 +406,87 @@ def sentence_matching(query):
     encoding_matrix = embed_fn(query)
     return np.inner(encoding_matrix, encoding_matrix)
 
-@app.route('/compareSentences', methods=["GET", "POST"])
-def compareSentences():
+def sentence_matching_result(word, input):
+    api = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
+    r = requests.get(url=api)
+    meaningDict = r.json()
+    meaning = [input]
+    for objects in meaningDict[0]['meanings'][0]['definitions']:
+        meaning.append(objects['definition'])
+
+    corr_mat = sentence_matching(meaning)
+    result = corr_mat[0][:]
+    return result, meaning
+
+@app.route('/dailyChallenge', methods=["GET", "POST"])
+def dailyChallenge():
     if universal_login_condition():
+        india = datetime.now(timezone("Asia/Kolkata")).strftime('%Y-%m-%d')
+        userData = db.collection(u'dailyChallenge').document(session['email']).get().to_dict()
+        doc_ref = db.collection(u'dailyChallenge').document(session['email'])
+        if userData is None:
+            doc_ref.set({
+                    'latest': (datetime.now(timezone("Asia/Kolkata"))-timedelta(1)).strftime('%Y-%m-%d'),
+                    'streak': 0,
+                })
+        elif userData['latest']==india:
+            context = {
+                    'message': "You have solved today's daily challenge! Come back tomorrow for a new one!",
+                    "logout": "http://127.0.0.1:5000/logout",
+                    "main_page": "http://127.0.0.1:5000" 
+                }
+            return jsonify(context)
+
         if request.method == "POST":
-            word = request.args.get('word')
+            word = db.collection(u'dailyChallenge').document(u'challenge').get().to_dict()['word']
+            if word is None:
+                return redirect("/")
             input = request.args.get('sentence')
-            api = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
-            r = requests.get(url=api)
-            meaningDict = r.json()
-            meaning = [input]
-            for objects in meaningDict[0]['meanings'][0]['definitions']:
-                meaning.append(objects['definition'])
-
-            corr_mat = sentence_matching(meaning)
-            result = corr_mat[0][:]
-            context = {}
-            for i in range(1, len(meaning)):
-                context[meaning[i]] = str(result[i])
-
-            print(context)
-
+            result, meaning = sentence_matching_result(word, input)
+            _index = np.argmax(result[1:], axis=0)
+            userData = db.collection(u'dailyChallenge').document(session['email']).get().to_dict()
+            doc_ref = db.collection(u'dailyChallenge').document(session['email'])   
+            streak = False
+            if result[1:][_index] > 0.5:
+                streak = True
+            doc_ref.set({
+                'latest': india,
+                'streak': userData['streak']+1 if streak else 0
+            })         
+            
+            trackData = db.collection(u'trackDailyChallenge').document(session['email'])
+            trackData.set({
+                india: {
+                    "word": word,
+                    "meaning": meaning[1:][_index],
+                    "accuracy": "{:.2f}".format(result[1:][_index]*100)
+                }
+            }, merge=True)
+            
+            context = {
+                "word": word,
+                "input": input,
+                "meaning": meaning[1:][_index],
+                "accuracy": "{:.2f}".format(result[1:][_index]*100),
+                "streak" : "Maintained" if streak else "Broken"
+            }
+            
             return jsonify(context)
         else:
-            word = words.sample()
+            india = datetime.now(timezone("Asia/Kolkata")).strftime('%Y-%m-%d')
+            data = db.collection(u'dailyChallenge').document(u'challenge').get().to_dict()
+            if data is None or data['date']!=india:
+                word = generate_random_word()
+                doc_ref = db.collection(u'dailyChallenge').document(u'challenge')
+                doc_ref.set({
+                    'date': india,
+                    'word': word
+                })
+            else:
+                word = data['word']
+                    
             context = {
-                "word": str(word).split(' ')[-1],
+                "word": word,
                 "logout": "http://127.0.0.1:5000/logout",
                 "main_page": "http://127.0.0.1:5000" 
             }
@@ -437,6 +494,112 @@ def compareSentences():
     else:
         return redirect('/')
 
+def generate_random_word(level=None):
+    while True:
+        word = words.sample()
+        word = str(word).split(' ')[-1]
+        if level:
+            if level == 'Beginner':
+                if len(word)>5:
+                    continue
+            elif level == 'Intermediate':
+                if len(word)<5 or len(word)>7:
+                    continue
+            else:
+                if len(word) < 7:
+                    continue
+        api = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
+        r = requests.get(url=api)
+        meaningDict = r.json()
+        try:
+            if meaningDict['title'] == 'No Definitions Found':
+                continue
+            else:
+                break
+        except:
+            break
+    return word
+
+
+@app.route('/learn', methods=["GET", "POST"])
+def learn():
+    if universal_login_condition():
+        india = datetime.now(timezone("Asia/Kolkata")).strftime('%Y-%m-%d')
+        data = db.collection(u'learn').document(session['email']).get().to_dict()
+        if data is None or data['date']!=india:
+            doc_ref = db.collection(u'learn').document(session['email'])
+            doc_ref.set({
+                'date': india,
+                'count': 0
+            })
+        elif data['count'] >=10:
+            context = {
+                "message": "Daily limit reached! Return next day!",
+                "logout": "http://127.0.0.1:5000/logout",
+                "main_page": "http://127.0.0.1:5000" 
+            }
+            return jsonify(context)
+        
+        if request.method == "POST":
+            word = request.args.get('word')
+            input = request.args.get('sentence')
+            if word.lower() == input.lower():
+                context = {
+                    "error": "Meaning cannot be same as the word!",
+                    "logout": "http://127.0.0.1:5000/logout",
+                    "main_page": "http://127.0.0.1:5000" 
+                }
+                return jsonify(context)
+            result, meaning = sentence_matching_result(word, input)
+            _index = np.argmax(result[1:], axis=0)
+            context = {
+                "input": input,
+                "meaning": meaning[1:][_index],
+                "accuracy": "{:.2f}".format(result[1:][_index]*100)
+            }
+            data = db.collection(u'learn').document(session['email']).get().to_dict()
+            doc_ref = db.collection(u'learn').document(session['email'])
+            doc_ref.set({
+                'count': data['count']+1
+            }, merge=True)
+            return jsonify(context)
+        else:
+            word = generate_random_word(level=session['level'])            
+            context = {
+                "word": word,
+                "logout": "http://127.0.0.1:5000/logout",
+                "main_page": "http://127.0.0.1:5000" 
+            }
+            return jsonify(context)
+    else:
+        context = {
+            "message": "Welcome to learn section. Here, we introduce you to our style of teaching!",
+            "main_page": "http://127.0.0.1:5000" 
+        }
+        return jsonify(context)
+
+@app.route('/history')
+def history():
+    if universal_login_condition():
+        trackData = db.collection(u'trackDailyChallenge').document(session['email']).get().to_dict()
+        streak = db.collection(u'dailyChallenge').document(session['email']).get().to_dict()['streak']
+        if trackData is None:
+            context = {
+                "message": "No history found! Create history by solving one ;)",
+                "logout": "http://127.0.0.1:5000/logout",
+                "main_page": "http://127.0.0.1:5000" 
+            }
+            return jsonify(context)
+        context = {}
+        for date, data in trackData.items():
+            context[date] = f"Word: {data['word']} | Meaning: {data['meaning']} | Accuracy: {data['accuracy']}"
+        
+        context['streak'] = streak
+        context['logout'] = "http://127.0.0.1:5000/logout"
+        context['main_page'] = "http://127.0.0.1:5000"
+        return jsonify(context)    
+    else:
+        redirect('/logout')
 
 
 if __name__ == "__main__": 
