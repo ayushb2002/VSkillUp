@@ -14,6 +14,8 @@ import numpy as np
 import pandas as pd
 from pytz import timezone 
 from datetime import datetime, timedelta
+import string
+import random
 
 app = Flask(__name__) 
 bcrypt = Bcrypt(app) 
@@ -599,8 +601,48 @@ def history():
         context['main_page'] = "http://127.0.0.1:5000"
         return jsonify(context)    
     else:
-        redirect('/logout')
+        redirect('/logout')    
 
+@app.route("/createRoom")
+def oneOnOneChallenge():
+    if universal_login_condition():
+        ROOM_ID_LENGTH = 10
+        ROOM_ID = ''.join(random.choices(string.ascii_uppercase + string.digits, k=ROOM_ID_LENGTH))
+        PASSWORD = ''.join(random.choices(string.ascii_uppercase + string.digits, k=ROOM_ID_LENGTH))
+        context = {
+            "room_id": ROOM_ID,
+            "password": PASSWORD,
+            "message": "This room will expire at 0000 hours!",
+            "logout": "http://127.0.0.1:5000/logout",
+            "main_page": "http://127.0.0.1:5000" 
+        }
+        room = db.collection(u'rooms').document(ROOM_ID).get().to_dict()
+        india = datetime.now(timezone("Asia/Kolkata")).strftime('%Y-%m-%d')
+        doc_ref = db.collection(u'rooms').document(ROOM_ID)
+        if room is None or room['date']!=india:
+            doc_ref.set({
+                'date': india,
+                'owner': session['email'],
+                'ROOM_ID': ROOM_ID,
+                'PASSWORD': PASSWORD 
+            })
+        else:
+            return redirect('/createRoom')
+        return jsonify(context)
+    else:
+        return redirect('/logout')
+
+@app.route('/clearRoomCache')
+def clearRoomCache():
+    rooms = db.collection(u'rooms').stream()
+    if rooms is None:
+        return True
+    india = datetime.now(timezone("Asia/Kolkata")).strftime('%Y-%m-%d')
+    for id, data in rooms.items():
+        if data['date']!=india:
+            db.coolection(u'rooms').document(id).delete()
+            
+    return True    
 
 if __name__ == "__main__": 
     app.run(debug=True)
