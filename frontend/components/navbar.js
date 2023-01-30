@@ -1,9 +1,11 @@
 import { Dropdown, Avatar, Navbar } from "flowbite-react"
+import Loader from "./loader"
 
 export default function NavigationBar() 
 {
     return (
         <>
+        <Loader />
         <Navbar
             fluid={true}
             rounded={true}

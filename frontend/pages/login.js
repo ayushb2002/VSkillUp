@@ -25,15 +25,15 @@ export default function Login()
         </Head>
         <NavigationBar />
         <section className="flex justify-center flex-col">
-        <div className="w-100 text-center mt-10">
+        <div className="w-100 text-center my-10">
         <span className="text-3xl font-bold">Sign In Form</span>
         </div>
         <div className="w-100 flex justify-center my-5">
-            <div className="text-center border border-solid border-cyan-500 p-3 rounded flex flex-row hover:border-2" onClick={googleLogin}>
+            <div className="text-center border border-solid border-cyan-500 py-5 px-2 rounded flex flex-row hover:border-2" onClick={googleLogin}>
                 <div className="flex justify-center">
                 <Avatar alt="google" img="https://cdn-icons-png.flaticon.com/512/2702/2702602.png" className="w-9 h-6" rounded={true} />
                 </div>
-                <div className="flex justify-center text-center mx-5 my-auto">
+                <div className="flex justify-end text-center mx-5 my-auto">
                     <span>Login With Google</span>
                 </div>
             </div>
