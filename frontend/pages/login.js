@@ -2,20 +2,22 @@ import Head from "next/head"
 import { Button, TextInput, Label, Checkbox, Avatar } from "flowbite-react"
 import NavigationBar from "@/components/navbar"
 import { useState } from "react"
+import axios from "axios"
 
 export default function Login()
 {
     const [email, setEmail] = useState('');
     const [pwd, setPwd] = useState('');
-
+    
     const loginForm = (e) => {
         e.preventDefault();
         alert(email);
     }
 
-    const googleLogin = (e) => {
+    const googleLogin = async (e) => {
         e.preventDefault();
-        alert('google');
+        const response = await axios.get('http://127.0.0.1:5000/login_via_google');
+        console.log(response);
     }
 
     return (
