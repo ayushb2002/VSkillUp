@@ -16,8 +16,10 @@ from pytz import timezone
 from datetime import datetime, timedelta
 import string
 import random
+from flask_cors import CORS
 
 app = Flask(__name__) 
+CORS(app)
 bcrypt = Bcrypt(app) 
 app.secret_key = os.environ.get("SECRET_KEY")
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1" 
