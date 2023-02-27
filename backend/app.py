@@ -17,7 +17,9 @@ from datetime import datetime, timedelta
 import string
 import random
 from flask_cors import CORS
+from dotenv import load_dotenv
 
+load_dotenv()
 app = Flask(__name__) 
 CORS(app)
 bcrypt = Bcrypt(app) 
@@ -144,12 +146,24 @@ def register():
         pass
     
     if request.method == "POST":
-        first_name = request.args.get('first_name')
-        last_name = request.args.get('last_name')
-        email = request.args.get('email')
-        pwd = request.args.get('password')
+        first_name = request.form.get('first_name')
+        last_name = request.form.get('last_name')
+        email = request.form.get('email')
+        pwd = request.form.get('password')
+        print(first_name, last_name, email, pwd)
         hash_pwd = bcrypt.generate_password_hash(pwd)
 
+        users_ref = db.collection(u'users')
+        
+        try:
+            if users_ref.document(email).get():
+                data = users_ref.document(email).get().to_dict()
+                if data:
+                    context = {"registered": False, "main_page": "http://127.0.0.1:5000/"}
+                    return jsonify(context)
+        except:
+            pass
+        
         if writeRegister(first_name, last_name, email, hash_pwd):
             context = {"registered": True, "main_page": "http://127.0.0.1:5000/"}
             return jsonify(context)
@@ -174,8 +188,8 @@ def login():
         pass
     
     if request.method == "POST":
-        email = request.args.get('email')
-        pwd = request.args.get('password')
+        email = request.form.get('email')
+        pwd = request.form.get('password')
         
         users_ref = db.collection(u'users')
         
@@ -183,6 +197,7 @@ def login():
             data = users_ref.document(email).get().to_dict()
             if not data:
                 context = {
+                        "success": False,
                         "message": "User email address not registered!",
                         "main_page": "http://127.0.0.1:5000/"
                     }
@@ -192,15 +207,17 @@ def login():
                 session['family_name'] = data['last_name']
                 session['email'] = data['email']
                 session['non_google_id'] = True
-                return redirect('/welcome')
+                return jsonify({'success': True, "main_page": "http://127.0.0.1:5000/"})
             else:
                 context = {
+                    "success": False,
                     "message": "User password is invalid!",
                     "main_page": "http://127.0.0.1:5000/"
                 }
                 return jsonify(context)
         else:
             context = {
+                    "success": False,
                     "message": "User email address not registered!",
                     "main_page": "http://127.0.0.1:5000/"
                 }
@@ -232,6 +249,7 @@ def welcome():
         session['level'] = data['level']
 
         context = {
+            "success": True,
             "first_name": session['given_name'],
             "last_name": session['family_name'],
             "email": session['email'],
