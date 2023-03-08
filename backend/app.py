@@ -1,7 +1,8 @@
 import os
 import pathlib
 import requests
-from flask import Flask, session, abort, redirect, request, jsonify
+from flask import Flask, session, abort, redirect, request, jsonify, url_for
+from flask_session import Session
 from google.oauth2 import id_token
 from google_auth_oauthlib.flow import Flow
 from pip._vendor import cachecontrol
@@ -17,11 +18,18 @@ from datetime import datetime, timedelta
 import string
 import random
 from flask_cors import CORS
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
 app = Flask(__name__) 
-CORS(app)
+app.config["SESSION_PERMANENT"] = True
+app.config["SESSION_TYPE"] = "filesystem"
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=5)
+app.config["SESSION_COOKIE_SAMESITE"] = "None"
+app.config["SESSION_COOKIE_SECURE"] = True
+Session(app)
+CORS(app, supports_credentials=True)
 bcrypt = Bcrypt(app) 
 app.secret_key = os.environ.get("SECRET_KEY")
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1" 
@@ -39,7 +47,7 @@ flow = Flow.from_client_secrets_file(
 )
 
 def login_is_required(function):  
-    def wrapper(*args, **kwargs):
+    def wrapper(*form, **kwform):
         if "google_id" not in session:  
             return abort(401)
         else:
@@ -207,7 +215,11 @@ def login():
                 session['family_name'] = data['last_name']
                 session['email'] = data['email']
                 session['non_google_id'] = True
-                return jsonify({'success': True, "main_page": "http://127.0.0.1:5000/"})
+                return redirect(url_for('welcome', data = {
+                    "given_name": f"{data['first_name']}",
+                    "family_name": f"{data['last_name']}",
+                    "email": f"{data['email']}"
+                }))
             else:
                 context = {
                     "success": False,
@@ -233,18 +245,33 @@ def login():
 @app.route('/welcome', methods=["GET", "POST"])
 def welcome():
     if universal_login_condition():
+        if 'google_id' not in session:
+            sessionData = json.loads(request.args['data'].replace("'", '"'))
+            session['email'] = sessionData['email']
+            session['given_name'] = sessionData['given_name']
+            session['family_name'] = sessionData['family_name']
         data = db.collection(u'users').document(session['email']).get().to_dict()
         if not data:
             return redirect('/logout')
         
         if 'age' not in data.keys() or 'education' not in data.keys():
-            return redirect('/personalInformation')
+            return redirect(url_for('personalInformation', data = {
+                "given_name": session['given_name'],
+                "family_name": session['family_name'],
+                "email": session['email'],
+            }))
         
         session['age'] = data['age']
         session['education'] = data['education']
         
         if 'level' not in data.keys():
-            return redirect('/level')
+            return redirect(url_for('level', data={
+                "given_name": session['given_name'],
+                "family_name": session['family_name'],
+                "email": session['email'],
+                "age": session['age'],
+                "education": session['education']
+            }))
         
         session['level'] = data['level']
 
@@ -278,40 +305,63 @@ def personalInformation():
     if universal_login_condition():
 
         if request.method == "POST":
-            
-            age = request.args.get('age')
-            education = request.args.get('education')
+            age = request.form.get('age')
+            education = request.form.get('education')
+            if not session.get('given_name'):
+                session['given_name'] = request.form.get('given_name')
+            if not session.get('family_name'):
+                session['family_name'] = request.form.get('family_name')
+            if not session.get('email'):
+                session['email'] = request.form.get('email')
 
             if not age or not education:
                 context = {
                     "message": "Please add personal information via POST to proceed!",
+                    "personalInformation": True,
                     "logout": "http://127.0.0.1:5000/logout" ,
-                    "main_page": "http://127.0.0.1:5000" 
+                    "main_page": "http://127.0.0.1:5000",
+                    "given_name": session['given_name'],
+                    "family_name": session['family_name'],
+                    "email": session['email']
                 }
                 return jsonify(context)
 
             if writePersonalInformation(age, education):
-                return redirect('/welcome')
+                print('called')
+                return redirect(url_for('welcome', data = {
+                    "given_name": session['given_name'],
+                    "family_name": session['family_name'],
+                    "email": session['email']
+                }))
             
             else:
+                print('Failed')
                 context = {
                     "error": "Personal information could not be added! Please logout and retry!",
                     "logout": "http://127.0.0.1:5000/logout" ,
                     "main_page": "http://127.0.0.1:5000" 
                 }
-
+                return jsonify(context)
         else:
+            sessionData = json.loads(request.args['data'].replace("'", '"'))
+            session['email'] = sessionData['email']
+            session['given_name'] = sessionData['given_name']
+            session['family_name'] = sessionData['family_name']
             context = {
                 "message": "Please add personal information via POST to proceed!",
+                "personalInformation": True,
                 "logout": "http://127.0.0.1:5000/logout" ,
-                "main_page": "http://127.0.0.1:5000" 
+                "main_page": "http://127.0.0.1:5000",
+                "given_name": session['given_name'],
+                "family_name": session['family_name'],
+                "email": session['email']
             }
             return jsonify(context)
         
     else:
         return redirect('/')
 
-def suggest_level():
+def suggest_level(age, education):
     ageRange = ['Below 18', 'Between 18 to 40', 'Above 40']
     educationRange = ['Kindergarten', 'Primary School', 'Secondary School', 'Graduate', 'Post Graduate']
     
@@ -321,6 +371,9 @@ def suggest_level():
         "Advance": [(ageRange[1], educationRange[3]), (ageRange[1], educationRange[4]), (ageRange[0], educationRange[4]), (ageRange[2], educationRange[3]), (ageRange[2], educationRange[4])]
     }
 
+    if not age:
+        session['age'] = age
+        
     if int(session['age']) < 18:
         age = ageRange[0]
     elif int(session['age']) >= 18 and int(session['age']) <40:
@@ -328,7 +381,8 @@ def suggest_level():
     else:
         age = ageRange[2]
 
-    education = session['education']
+    if not education:
+        education = session['education']
     
     pair = (age, education)
     for key, value in combinations.items():
@@ -341,7 +395,14 @@ def suggest_level():
 def level():
     if universal_login_condition():
         if request.method == "POST":
-            level = request.args.get('level')
+            level = request.form.get('level')
+            if not session.get('given_name'):
+                session['given_name'] = request.form.get('given_name')
+            if not session.get('family_name'):
+                session['family_name'] = request.form.get('family_name')
+            if not session.get('email'):
+                session['email'] = request.form.get('email')
+                
             level.capitalize()
             if not level:
                 context = {
@@ -357,7 +418,11 @@ def level():
                     u'level': level,
                 }, merge=True)
 
-                return redirect('/welcome')
+                return redirect(url_for('welcome', data={
+                    "given_name": session['given_name'],
+                    "family_name": session['family_name'],
+                    "email": session['email']
+                }))
             except:
                 context={
                     "error": "Could not write level!"
@@ -366,15 +431,54 @@ def level():
         else:
             if 'level' in session:
                 your_level = session['level']
-            suggested_level = suggest_level()
+                suggested_level = suggest_level(session['age'], session['education'])
+                context = {
+                        "your-level": your_level,
+                        "suggested-level": suggested_level,
+                        "apply-suggested-level": f"http://127.0.0.1:5000/level?level={suggested_level}"
+                    }
+                return jsonify(context)
+            else:
+                sessionData = json.loads(request.args['data'].replace("'", '"'))
+                session['email'] = sessionData['email']
+                session['given_name'] = sessionData['given_name']
+                session['family_name'] = sessionData['family_name']
+                session['age'] = sessionData['age']
+                session['education'] = sessionData['education']
+                context = {
+                    "message": "You need to set your level via POST request",
+                    "level": True,
+                    "logout": "http://127.0.0.1:5000/logout",
+                    "main_page": "http://127.0.0.1:5000",
+                    "given_name": session['given_name'],
+                    "family_name": session['family_name'],
+                    "email": session['email'],
+                    "age": session['age'],
+                    "education": session['education']
+                }
+                return jsonify(context)
+    else:
+        try:
+            sessionData = json.loads(request.args['data'].replace("'", '"'))
+            session['email'] = sessionData['email']
+            session['given_name'] = sessionData['given_name']
+            session['family_name'] = sessionData['family_name']
+            session['age'] = sessionData['age']
+            session['education'] = sessionData['education']
             context = {
-                "your-level": your_level,
-                "suggested-level": suggested_level,
-                "apply-suggested-level": f"http://127.0.0.1:5000/level?level={suggested_level}"
+                    "message": "You need to set your level via POST request",
+                    "level": True,
+                    "logout": "http://127.0.0.1:5000/logout",
+                    "main_page": "http://127.0.0.1:5000",
+                    "given_name": session['given_name'],
+                    "family_name": session['family_name'],
+                    "email": session['email'],
+                    "age": session['age'],
+                    "education": session['education']
             }
             return jsonify(context)
-    else:
-        return redirect('/')
+        except:
+            return redirect('/')
 
 @app.route('/deleteAccount/<email>', methods=["GET", "POST"])
 def deleteAccount(email):
@@ -382,7 +486,7 @@ def deleteAccount(email):
         if 'email' in session:
             if session['email'] == email:
                 if request.method == "POST":
-                    pwd = request.args.get('password')
+                    pwd = request.form.get('password')
                     data = db.collection(u'users').document(email).get().to_dict()
                     if not data:
                         context = {"error": "User does not exist!"}
@@ -463,7 +567,7 @@ def dailyChallenge():
             word = db.collection(u'dailyChallenge').document(u'challenge').get().to_dict()['word']
             if word is None:
                 return redirect("/")
-            input = request.args.get('sentence')
+            input = request.form.get('sentence')
             result, meaning = sentence_matching_result(word, input)
             _index = np.argmax(result[1:], axis=0)
             userData = db.collection(u'dailyChallenge').document(session['email']).get().to_dict()
@@ -563,8 +667,8 @@ def learn():
             return jsonify(context)
         
         if request.method == "POST":
-            word = request.args.get('word')
-            input = request.args.get('sentence')
+            word = request.form.get('word')
+            input = request.form.get('sentence')
             if word.lower() == input.lower():
                 context = {
                     "error": "Meaning cannot be same as the word!",

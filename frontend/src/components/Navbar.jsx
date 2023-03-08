@@ -1,11 +1,21 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 
 const Navbar = () => {
+    const [loggedIn, setLoggedIn] = useState(false);
+    useEffect(() => {
+      if (sessionStorage.getItem("loggedIn") !== undefined) 
+        {
+            if (sessionStorage.getItem("loggedIn") == "true"){
+                setLoggedIn(true);
+            }
+        }
+    }, []);
+    
   return (
     <div>
         <div className="navbar bg-base-300">
             <div className="flex-1">
-                <a className="btn btn-ghost normal-case text-xl">VSkillUp</a>
+                <a className="btn btn-ghost normal-case text-xl" href='/'>VSkillUp</a>
             </div>
             <div className="flex-none">
                 <ul className="menu menu-horizontal px-1">
@@ -20,8 +30,19 @@ const Navbar = () => {
                     <li><a href='/dailyChallenge'>Daily Challenge</a></li>
                     </ul>
                 </li>
-                <li><a href='/login'>Login</a></li>
-                <li><a href='/register'>Register</a></li>
+                {!loggedIn && (
+                    <>
+                        <li><a href='/login'>Login</a></li>
+                        <li><a href='/register'>Register</a></li>
+                    </>
+                )}
+                {loggedIn && (
+                    <>
+                        <li><a href='/profile'>Profile</a></li>
+                        <li><a href="/logout">Logout</a></li>
+                    </>
+                )}
+                
                 </ul>
             </div>
         </div>

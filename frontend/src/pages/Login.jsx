@@ -26,22 +26,44 @@ const Login = () => {
       {
         toast.success('Signed in!');
         sessionStorage.setItem('loggedIn', true);
-        const userData = await fetch('http://127.0.0.1:5000/welcome', 
-        {
-          method: 'GET'
-        })
-        const data = await userData.json();
-        console.log(data);
-        // setTimeout(() => {
-        //   window.location.href = '/';
-        // }, 1000);
+        sessionStorage.setItem('email', result['email']);
+        sessionStorage.setItem('given_name', result['first_name']);
+        sessionStorage.setItem('family_name', result['last_name']);
+        sessionStorage.setItem('age', result['age']);
+        sessionStorage.setItem('education', result['education']);
+        sessionStorage.setItem('level', result['level']);
+        setTimeout(() => {
+          window.location.href = '/profile';
+        }, 1000);
+      }
+      else if(result['message'] && result['personalInformation'])
+      {
+        toast("Step 1/3 successful");
+        sessionStorage.setItem('email', result['email']);
+        sessionStorage.setItem('given_name', result['given_name']);
+        sessionStorage.setItem('family_name', result['family_name']);
+        setTimeout(() => {
+          window.location.href = '/personalInformation';
+        }, 1000);
+      }
+      else if (result['message'] && result['level'])
+      {
+        toast("Step 2/3 successful");
+        sessionStorage.setItem('email', result['email']);
+        sessionStorage.setItem('given_name', result['given_name']);
+        sessionStorage.setItem('family_name', result['family_name']);
+        sessionStorage.setItem('age', result['age']);
+        sessionStorage.setItem('education', result['education']);
+        setTimeout(() => {
+          window.location.href = '/level';
+        }, 1000);
       }
       else
       {
         toast.error('User not registered or password is incorrect!');
         setTimeout(() => {
           window.location.reload();
-        }, 2000);
+        }, 1000);
       }
     }
     catch(err)

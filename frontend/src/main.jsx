@@ -11,6 +11,10 @@ import Register from './pages/Register';
 import Learn from './pages/Learn';
 import { Toaster } from 'react-hot-toast';
 import DailyChallenge from './pages/DailyChallenge';
+import PersonalInformation from './pages/PersonalInformation';
+import Level from './pages/Level';
+import Profile from './pages/Profile';
+import Logout from './pages/Logout';
 
 const router = createBrowserRouter([
   {
@@ -32,6 +36,22 @@ const router = createBrowserRouter([
   {
     path: 'dailyChallenge',
     element: <DailyChallenge />,
+  },
+  {
+    path: 'personalInformation',
+    element: <PersonalInformation />,
+  },
+  {
+    path: 'level',
+    element: <Level />,
+  },
+  {
+    path: 'profile',
+    element: <Profile />,
+  },
+  {
+    path: '/logout',
+    element: <Logout />,
   }
 ]);
 
