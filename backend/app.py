@@ -324,7 +324,6 @@ def level():
     if universal_login_condition():
         if request.method == "POST":
             level = request.args.get('level')
-            level.capitalize()
             if not level:
                 context = {
                     "message": "Please add level via POST to proceed!",
@@ -332,7 +331,7 @@ def level():
                     "main_page": "http://127.0.0.1:5000" 
                 }
                 return jsonify(context)
-
+            level.capitalize()
             try:
                 doc_ref = db.collection(u'users').document(session['email'])
                 doc_ref.set({
@@ -348,6 +347,8 @@ def level():
         else:
             if 'level' in session:
                 your_level = session['level']
+            else:
+                your_level = "Not set yet!"
             suggested_level = suggest_level()
             context = {
                 "your-level": your_level,
