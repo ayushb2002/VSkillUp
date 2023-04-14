@@ -22,12 +22,17 @@ const Profile = () => {
     <div>
       <Navbar />
       <section>
-        <div className='p-10 grid grid-cols-4'>
-          <div className='p-5 col-span-4 text-center'>
+        <div className='p-10 grid grid-cols-5'>
+          <div className='p-5 col-span-5 text-center'>
             <span className='text-3xl'>Profile</span>
           </div>
           <div></div>
-          <div className='col-span-3'>
+          <div className='col-span-3 flex justify-center mb-5'>
+            <img src="https://picsum.photos/300/200" alt="#user" className='rounded-lg' />
+          </div>
+          <div></div>
+          <div></div>
+          <div className='col-span-3 flex justify-center'>
             <table className='table'>
               <thead>
                 <tr>
@@ -51,6 +56,7 @@ const Profile = () => {
               </tbody>
             </table>
           </div>
+          <div></div>
         </div>
       </section>
       <Footer />

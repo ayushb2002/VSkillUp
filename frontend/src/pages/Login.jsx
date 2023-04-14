@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import toast from 'react-hot-toast';
@@ -7,6 +7,12 @@ const Login = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    if(sessionStorage.getItem('loggedIn'))
+      window.location.href = '/profile';
+  })
+  
 
   const signIn = async (e) => {
     e.preventDefault();

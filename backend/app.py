@@ -620,6 +620,78 @@ def dailyChallenge():
     else:
         return redirect('/')
 
+@app.route('/dailyChallengeForWebsite', methods=["POST"])
+def dailyChallengeForWebsite():
+    if request.form.get('email'):
+        india = datetime.now(timezone("Asia/Kolkata")).strftime('%Y-%m-%d')
+        userData = db.collection(u'dailyChallenge').document(request.form.get('email')).get().to_dict()
+        doc_ref = db.collection(u'dailyChallenge').document(request.form.get('email'))
+        if userData is None:
+            doc_ref.set({
+                    'latest': (datetime.now(timezone("Asia/Kolkata"))-timedelta(1)).strftime('%Y-%m-%d'),
+                    'streak': 0,
+                })
+        elif userData['latest']==india:
+            context = {
+                    'message': "You have solved today's daily challenge! Come back tomorrow for a new one!",
+                }
+            return jsonify(context)
+
+        if request.form.get('submit') == 'true':
+            word = db.collection(u'dailyChallenge').document(u'challenge').get().to_dict()['word']
+            if word is None:
+                return redirect("/")
+            input = request.form.get('sentence')
+            result, meaning = sentence_matching_result(word, input)
+            _index = np.argmax(result[1:], axis=0)
+            userData = db.collection(u'dailyChallenge').document(request.form.get('email')).get().to_dict()
+            doc_ref = db.collection(u'dailyChallenge').document(request.form.get('email'))   
+            streak = False
+            if result[1:][_index] > 0.5:
+                streak = True
+            doc_ref.set({
+                'latest': india,
+                'streak': userData['streak']+1 if streak else 0
+            })         
+            
+            trackData = db.collection(u'trackDailyChallenge').document(request.form.get('email'))
+            trackData.set({
+                india: {
+                    "word": word,
+                    "meaning": meaning[1:][_index],
+                    "accuracy": "{:.2f}".format(result[1:][_index]*100)
+                }
+            }, merge=True)
+            
+            context = {
+                "word": word,
+                "input": input,
+                "meaning": meaning[1:][_index],
+                "accuracy": "{:.2f}".format(result[1:][_index]*100),
+                "streak" : "Maintained" if streak else "Broken"
+            }
+            
+            return jsonify(context)
+        else:
+            india = datetime.now(timezone("Asia/Kolkata")).strftime('%Y-%m-%d')
+            data = db.collection(u'dailyChallenge').document(u'challenge').get().to_dict()
+            if data is None or data['date']!=india:
+                word = generate_random_word()
+                doc_ref = db.collection(u'dailyChallenge').document(u'challenge')
+                doc_ref.set({
+                    'date': india,
+                    'word': word
+                })
+            else:
+                word = data['word']
+                    
+            context = {
+                "word": word,
+            }
+            return jsonify(context)
+    else:
+        return redirect('/')
+
 def generate_random_word(level=None):
     while True:
         word = words.sample()
