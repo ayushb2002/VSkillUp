@@ -29,7 +29,6 @@ const DailyChallenge = () => {
         });
 
         const result = await response.json();
-        console.log(result);
         if(Object.keys(result)[0] == 'word')
         {
           setChallenge(result['word']);
@@ -45,7 +44,7 @@ const DailyChallenge = () => {
         window.location.href = '/login';
       }
     })();
-  })
+  }, [])
   
   const checkAnswer = async (e) => {
     e.preventDefault();
@@ -60,7 +59,6 @@ const DailyChallenge = () => {
         });
 
     const result = await response.json();
-    console.log(result);
     setResultSection(true);
     setChallenge(result['word']);
     setMeaning(result['meaning']);

@@ -775,6 +775,59 @@ def learn():
             "main_page": "http://127.0.0.1:5000" 
         }
         return jsonify(context)
+    
+@app.route('/learnOnWebsite', methods=["POST"])
+def learnOnWebsite():
+    if request.form.get('email'):
+        session['email'] = request.form.get('email')
+        session['level'] = request.form.get('level')
+        india = datetime.now(timezone("Asia/Kolkata")).strftime('%Y-%m-%d')
+        data = db.collection(u'learn').document(session['email']).get().to_dict()
+        if data is None or data['date']!=india:
+            doc_ref = db.collection(u'learn').document(session['email'])
+            doc_ref.set({
+                'date': india,
+                'count': 0
+            })
+        elif data['count'] >=10:
+            context = {
+                "message": "Daily limit reached! Return next day!"
+            }
+            return jsonify(context)
+        
+        if request.form.get('submit') == "true":
+            word = request.form.get('word')
+            input = request.form.get('sentence')
+            if word.lower() == input.lower():
+                context = {
+                    "error": "Meaning cannot be same as the word!"
+                }
+                return jsonify(context)
+            result, meaning = sentence_matching_result(word, input)
+            _index = np.argmax(result[1:], axis=0)
+            context = {
+                "input": input,
+                "meaning": meaning[1:][_index],
+                "accuracy": "{:.2f}".format(result[1:][_index]*100),
+                "count": data['count']+1
+            }
+            data = db.collection(u'learn').document(session['email']).get().to_dict()
+            doc_ref = db.collection(u'learn').document(session['email'])
+            doc_ref.set({
+                'count': data['count']+1
+            }, merge=True)
+            return jsonify(context)
+        else:
+            word = generate_random_word(level=session['level'])            
+            context = {
+                "word": word
+            }
+            return jsonify(context)
+    else:
+        context = {
+            "message": "Welcome to learn section. Here, we introduce you to our style of teaching!"
+        }
+        return jsonify(context)
 
 @app.route('/history')
 def history():
