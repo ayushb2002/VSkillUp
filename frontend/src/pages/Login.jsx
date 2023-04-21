@@ -38,6 +38,7 @@ const Login = () => {
         sessionStorage.setItem('age', result['age']);
         sessionStorage.setItem('education', result['education']);
         sessionStorage.setItem('level', result['level']);
+        sessionStorage.setItem('streak', result['streak']);
         setTimeout(() => {
           window.location.href = '/profile';
         }, 1000);

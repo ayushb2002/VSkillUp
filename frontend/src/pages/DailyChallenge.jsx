@@ -64,6 +64,8 @@ const DailyChallenge = () => {
     setMeaning(result['meaning']);
     setResult(result['accuracy']);
     setStreak(result['streak']);
+    setMessageScreen(true);
+    sessionStorage.setItem('streak', sessionStorage.getItem('streak')+1);
   }
 
   return (

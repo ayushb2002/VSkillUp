@@ -274,7 +274,11 @@ def welcome():
             }))
         
         session['level'] = data['level']
-
+        userData = db.collection(u'dailyChallenge').document(session['email']).get().to_dict()
+        if 'streak' in userData.keys():
+            session['streak'] = userData['streak']
+        else:
+            session['streak'] = 0
         context = {
             "success": True,
             "first_name": session['given_name'],
@@ -283,6 +287,7 @@ def welcome():
             "age": session['age'],
             "education": session['education'],
             "level": session['level'],
+            "streak": session['streak'],
             "logout": "http://127.0.0.1:5000/logout" 
         }
         return jsonify(context)
@@ -548,6 +553,7 @@ def sentence_matching_result(word, input):
 def dailyChallenge():
     if universal_login_condition():
         india = datetime.now(timezone("Asia/Kolkata")).strftime('%Y-%m-%d')
+        india_yesterday = (datetime.now(timezone("Asia/Kolkata")) - timedelta(days=1)).strftime('%Y-%m-%d')
         userData = db.collection(u'dailyChallenge').document(session['email']).get().to_dict()
         doc_ref = db.collection(u'dailyChallenge').document(session['email'])
         if userData is None:
@@ -573,11 +579,12 @@ def dailyChallenge():
             userData = db.collection(u'dailyChallenge').document(session['email']).get().to_dict()
             doc_ref = db.collection(u'dailyChallenge').document(session['email'])   
             streak = False
-            if result[1:][_index] > 0.5:
+            if result[1:][_index] > 0.5 and userData['latest'] == india_yesterday:
                 streak = True
+                    
             doc_ref.set({
                 'latest': india,
-                'streak': userData['streak']+1 if streak else 0
+                'streak': userData['streak']+1 if streak else 1
             })         
             
             trackData = db.collection(u'trackDailyChallenge').document(session['email'])
@@ -624,6 +631,7 @@ def dailyChallenge():
 def dailyChallengeForWebsite():
     if request.form.get('email'):
         india = datetime.now(timezone("Asia/Kolkata")).strftime('%Y-%m-%d')
+        india_yesterday = (datetime.now(timezone("Asia/Kolkata")) - timedelta(days=1)).strftime('%Y-%m-%d')
         userData = db.collection(u'dailyChallenge').document(request.form.get('email')).get().to_dict()
         doc_ref = db.collection(u'dailyChallenge').document(request.form.get('email'))
         if userData is None:
@@ -647,7 +655,7 @@ def dailyChallengeForWebsite():
             userData = db.collection(u'dailyChallenge').document(request.form.get('email')).get().to_dict()
             doc_ref = db.collection(u'dailyChallenge').document(request.form.get('email'))   
             streak = False
-            if result[1:][_index] > 0.5:
+            if result[1:][_index] > 0.5 and userData['latest'] == india_yesterday:
                 streak = True
             doc_ref.set({
                 'latest': india,
@@ -848,7 +856,7 @@ def history():
         context['streak'] = streak
         context['logout'] = "http://127.0.0.1:5000/logout"
         context['main_page'] = "http://127.0.0.1:5000"
-        return jsonify(context)    
+        return jsonify(context)
     else:
         redirect('/logout')    
 

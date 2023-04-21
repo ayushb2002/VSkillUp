@@ -10,11 +10,16 @@ const Profile = () => {
   const [fname, setFname] = useState(sessionStorage.getItem('given_name'));
   const [email, setEmail] = useState(sessionStorage.getItem('email'));
   const [lname, setLname] = useState(sessionStorage.getItem('family_name'));
+  const [streak, setStreak] = useState(sessionStorage.getItem('streak'));
 
   useEffect(() => {
     if(sessionStorage.getItem('loggedIn') != "true")
     {
       window.location.href = '/logout';
+    }
+    else
+    {
+      setLoggedIn(true);
     }
   }, [])
 
@@ -42,6 +47,7 @@ const Profile = () => {
                   <th>Age</th>
                   <th>Education</th>
                   <th>Level</th>
+                  <th>Streak</th>
                 </tr>
               </thead>
               <tbody>
@@ -52,6 +58,7 @@ const Profile = () => {
                   <td>{age}</td>
                   <td>{education}</td>
                   <td>{level}</td>
+                  <td>{streak}</td>
                 </tr>
               </tbody>
             </table>
