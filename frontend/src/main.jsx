@@ -15,6 +15,10 @@ import PersonalInformation from './pages/PersonalInformation';
 import Level from './pages/Level';
 import Profile from './pages/Profile';
 import Logout from './pages/Logout';
+import Game from './pages/Game';
+import OneVsOne from './sockets/OneVsOne';
+import Multiplayer from './sockets/Multiplayer';
+import MultiplayerGame from './sockets/MultiplayerGame';
 
 const router = createBrowserRouter([
   {
@@ -52,6 +56,22 @@ const router = createBrowserRouter([
   {
     path: '/logout',
     element: <Logout />,
+  },
+  {
+    path: '/game',
+    element: <Game />,
+  },
+  {
+    path: '/oneVsOne',
+    element: <OneVsOne />,
+  },
+  {
+    path: '/multiplayer', 
+    element: <Multiplayer />,
+  },
+  {
+    path: '/multiplayer/:roomId',
+    element: <MultiplayerGame />
   }
 ]);
 
