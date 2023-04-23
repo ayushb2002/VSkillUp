@@ -17,17 +17,22 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
     // console.log(`User connected ${socket.id}!`);
 
-    // socket.on("send_message", (data) => {
-    //     console.log(data);
-    //     socket.broadcast.emit("receive_message", data);
-    // });
-
     socket.on("join_room", (data) => {
-        socket.join(data);
-
-        socket.emit("success_join_room", {status: true});
-        socket.broadcast.emit("user_joined_room", {user:data.user});
+        socket.join(data.roomId);
+        socket.broadcast.emit(`receive_message_${data.roomId}`, {user: `${data.user} has joined!`});
+        console.log(`${data.user} joined room - ${data.roomId}`);
     });
+
+    socket.on("send_message", (data) => {
+        socket.broadcast.emit(`receive_message_${data.roomId}`, data);
+        console.log(`${data.roomId} message - ${data.message}`);
+    })
+
+    socket.on("disconnectRoom", (data) => {
+        socket.leave(data.roomId);
+        console.log(`${data.user} left room ${data.roomId}`);
+    })
+
 });
 
 server.listen(3000, () => {

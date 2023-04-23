@@ -19,18 +19,7 @@ const Multiplayer = () => {
             setLoggedIn(true);
         }
 
-        socket.on("success_join_room", (data) => {
-            if(data.status)
-            {
-                window.location.href = '/';
-            }
-            else
-            {
-                alert('Could not join the room!');
-            }
-        });
-
-    }, [socket]);
+    }, []);
 
     const createRoom = (e) => {
         e.preventDefault();
@@ -38,7 +27,42 @@ const Multiplayer = () => {
         socket.emit('join_room', {
             roomId: RoomId,
             user: email
+        });  
+
+        window.location.href = `/multiplayer/${RoomId}`;
+    }
+
+    const joinRoom = (e) => {
+        e.preventDefault();
+
+        socket.emit('join_room', {
+            roomId: RoomId,
+            user: email   
         });
+
+        window.location.href = `/multiplayer/${RoomId}`;
+    }
+
+    const generateRoomId = async (e) => {
+        e.preventDefault();
+        const formData = new FormData();
+        formData.append('email', `${email}`);
+
+        const response = await fetch('http://127.0.0.1:5000/createRoom', {
+            method: 'POST',
+            body: formData,
+        });
+
+        const result = await response.json();
+        console.log(result);
+        if(result['room_id'])
+        {
+            setRoomId(result['room_id']);
+        }
+        else
+        {
+            setRoomId('Set up a room id for yourself!');
+        }
     }
 
   return (
@@ -96,7 +120,10 @@ const Multiplayer = () => {
                     <label className="label">
                         <span className="label-text">Enter a random room ID</span>
                     </label>
-                        <input type="text" className='input input-bordered' onChange={(e) => setRoomId(e.target.value)} />
+                        <input type="text" className='input input-bordered' value={RoomId} onChange={(e) => setRoomId(e.target.value)} />
+                    </div>
+                    <div className='form-control p-5 flex justify-center items-center'>
+                        <button type='button' onClick={generateRoomId} className='btn btn-warning w-[18vw]'>Generate Room ID</button>
                     </div>
                     <div className='form-control p-5 flex justify-center items-center'>
                         <button type='submit' className='btn btn-primary w-[15vw]'>Create a room</button>
@@ -113,7 +140,7 @@ const Multiplayer = () => {
             <div className="modal">
             <div className="modal-box">
                 
-                <form>
+                <form onSubmit={joinRoom}>
                     <div className='form-control p-5'>
                     <label className="label">
                         <span className="label-text">Enter room ID</span>

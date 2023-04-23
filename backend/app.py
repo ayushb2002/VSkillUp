@@ -275,8 +275,11 @@ def welcome():
         
         session['level'] = data['level']
         userData = db.collection(u'dailyChallenge').document(session['email']).get().to_dict()
-        if 'streak' in userData.keys():
-            session['streak'] = userData['streak']
+        if userData:
+            if 'streak' in userData.keys():
+                session['streak'] = userData['streak']
+            else:
+                session['streak'] = 0
         else:
             session['streak'] = 0
         context = {
@@ -860,9 +863,11 @@ def history():
     else:
         redirect('/logout')    
 
-@app.route("/createRoom")
+@app.route("/createRoom", methods=["GET", "POST"])
 def oneOnOneChallenge():
-    if universal_login_condition():
+    if universal_login_condition() or request.form.get('email'):
+        if request.form.get('email'):
+            session['email'] = request.form.get('email')
         ROOM_ID_LENGTH = 10
         ROOM_ID = ''.join(random.choices(string.ascii_uppercase + string.digits, k=ROOM_ID_LENGTH))
         PASSWORD = ''.join(random.choices(string.ascii_uppercase + string.digits, k=ROOM_ID_LENGTH))
