@@ -14,6 +14,8 @@ const io = new Server(server, {
     }
 });
 
+let RAM = {};
+
 io.on("connection", (socket) => {
     // console.log(`User connected ${socket.id}!`);
 
@@ -29,8 +31,14 @@ io.on("connection", (socket) => {
     })
 
     socket.on("disconnectRoom", (data) => {
+        socket.broadcast.emit(`receive_message_${data.roomId}`, {user: `${data.user} has left!`});
         socket.leave(data.roomId);
         console.log(`${data.user} left room ${data.roomId}`);
+    });
+
+    socket.on("start_game", (data) => {
+        socket.broadcast.emit(`trigger_start_${data.roomId}`, data);
+        console.log(data);
     })
 
 });

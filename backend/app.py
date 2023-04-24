@@ -897,14 +897,105 @@ def oneOnOneChallenge():
 @app.route('/clearRoomCache')
 def clearRoomCache():
     rooms = db.collection(u'rooms').stream()
-    if rooms is None:
-        return True
+    if rooms is None or not rooms:
+        return jsonify({'success': True})
     india = datetime.now(timezone("Asia/Kolkata")).strftime('%Y-%m-%d')
-    for id, data in rooms.items():
-        if data['date']!=india:
-            db.coolection(u'rooms').document(id).delete()
+    try:
+        for id, data in rooms.items():
+            if data['date']!=india:
+                db.collection(u'rooms').document(id).delete()
+    except:
+          pass
+                
+    return jsonify({'success': True})
+
+@app.route('/multiplayerGame', methods=['GET', 'POST'])
+def multiplayerGame():
+    if request.method == 'GET':
+        word = generate_random_word(level='Intermediate')
+        return jsonify({"word":word})
+    else:
+        roomId = request.form.get('roomId')
+        doc_ref = db.collection(u'multiplayer').document(roomId).collection(u'players').stream()
+        if not doc_ref:
+            context = {
+                'error': 'Could not find the room!'
+            }
+            return jsonify(context)
+        
+        context = {}
+        for doc in doc_ref:
+            doc_items = doc.to_dict()
+            context[doc.id] = doc_items
+
+        return jsonify(context)
+        
+
+@app.route('/multiplayerStore', methods=['POST'])
+def multiplayerStore():
+    user = request.form.get('email')
+    word = request.form.get('word')
+    answer = request.form.get('answer')
+    roomId = request.form.get('roomId')
+    doc_ref = db.collection(u'multiplayer').document(roomId)
+    result, meaning = sentence_matching_result(word, answer)
+    _index = np.argmax(result[1:], axis=0)
+    if doc_ref.get():
+        data = doc_ref.get().to_dict()
+        if not data or data['word'] != word:
+            doc_ref.set({
+                'word': word
+            })
+            new_doc_ref = db.collection(u'multiplayer').document(roomId).collection(u'players').document(user)
+            new_doc_ref.set({
+                'answer': answer,
+                'result': "{:.2f}".format(result[1:][_index]*100)
+                
+            })
             
-    return True    
+            context = {
+                'user': user,
+                'result': "{:.2f}".format(result[1:][_index]*100),
+                'registered': True
+            }
+            return jsonify(context)
+        if user in data.keys():
+            context = {
+                'message': 'User data already set!',
+                'registered': True
+            }
+            return jsonify(context)
+        else:
+            new_doc_ref = db.collection(u'multiplayer').document(roomId).collection(u'players').document(user)
+            new_doc_ref.set({
+                'answer': answer,
+                'result': "{:.2f}".format(result[1:][_index]*100)
+                
+            })
+            
+            context = {
+                'user': user,
+                'result': "{:.2f}".format(result[1:][_index]*100),
+                'registered': True
+            }
+            return jsonify(context)
+    else:
+        doc_ref.set({
+                'word': word
+            })
+        new_doc_ref = db.collection(u'multiplayer').document(roomId).collection(u'players').document(user)
+        new_doc_ref.set({
+                'answer': answer,
+                'result': "{:.2f}".format(result[1:][_index]*100)
+                
+        })
+            
+        context = {
+                'user': user,
+                'result': "{:.2f}".format(result[1:][_index]*100),
+                'registered': True
+            }
+        return jsonify(context)
 
 if __name__ == "__main__": 
     app.run(debug=True)
