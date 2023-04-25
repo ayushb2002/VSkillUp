@@ -14,6 +14,7 @@ const Learn = () => {
   const [count, setCount] = useState(0);
   const [message, setMessage] = useState('');
   const [messageScreen, setMessageScreen] = useState(false);
+  const [disabled, setDisabled] = useState(false);
 
   useLayoutEffect(() => {
     (async ()=>{
@@ -56,6 +57,7 @@ const Learn = () => {
       return;
     }
     toast.success('Submitted successfully');
+    setDisabled(true);
     const formData = new FormData();
     formData.append('email', email); 
     formData.append('submit', 'true');
@@ -77,6 +79,7 @@ const Learn = () => {
     {
       setResultSection(true);
       setMessageScreen(true);
+      setDisabled(false);
       setAnswer(result['input']);
       setMeaning(result['meaning']);
       setResult(result['accuracy']);
@@ -111,7 +114,7 @@ const Learn = () => {
                   <input type="text" name="answer" className='input input-bordered' required={true} onChange={(e) => setAnswer(e.target.value)}/>
                 </div>
                 <div className='form-control mt-5'>
-                  <button type='submit' className='btn btn-primary w-[20vw]'>Submit</button>
+                  <button type='submit' className='btn btn-primary w-[20vw]' disabled={disabled}>Submit</button>
                 </div>
               </form>
             </div>

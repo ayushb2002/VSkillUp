@@ -487,10 +487,43 @@ def level():
             return jsonify(context)
         except:
             return redirect('/')
+        
+@app.route('/updateLevel', methods=['POST'])
+def updateLevel():
+    try:
+        email = request.form.get('email')
+        level = request.form.get('level')
+        doc_ref = db.collection(u'users').document(email)
+        doc_ref.update({u'level': level.capitalize()})
+        return jsonify({
+            'success': True
+        })
+    except:
+        return jsonify({
+            'success': False
+        })
+
+@app.route('/updatePersonalInformation', methods=['POST'])
+def updatePersonalInformation():
+    try:
+        email = request.form.get('email')
+        age = request.form.get('age')
+        education = request.form.get('education')
+        doc_ref = db.collection(u'users').document(email)
+        doc_ref.update({u'age': age, u'education': education})
+        return jsonify({
+            'success': True
+        })
+    except:
+        return jsonify({
+            'success': False
+        })
 
 @app.route('/deleteAccount/<email>', methods=["GET", "POST"])
 def deleteAccount(email):
-    if universal_login_condition():
+    if universal_login_condition() or request.form.get('email'):
+        if request.form.get('email'):
+            session['email'] = request.form.get('email')
         if 'email' in session:
             if session['email'] == email:
                 if request.method == "POST":
@@ -503,7 +536,10 @@ def deleteAccount(email):
                     if bcrypt.check_password_hash(data['password'], pwd):
                         try:
                             db.collections(u'users').document(email).delete()
-                            return redirect('/logout')
+                            if request.form.get('email'):
+                                return jsonify({'success': True})
+                            else:
+                                return redirect('/logout')
                         except:
                             context = {"error": "Database service is down at the moment!"}
                             return jsonify(context)
@@ -840,11 +876,14 @@ def learnOnWebsite():
         }
         return jsonify(context)
 
-@app.route('/history')
+@app.route('/history', methods=['GET', 'POST'])
 def history():
-    if universal_login_condition():
+    if universal_login_condition() or request.form.get('email'):
+        if request.form.get('email'):
+            session['email'] = request.form.get('email')
+
         trackData = db.collection(u'trackDailyChallenge').document(session['email']).get().to_dict()
-        streak = db.collection(u'dailyChallenge').document(session['email']).get().to_dict()['streak']
+        # streak = db.collection(u'dailyChallenge').document(session['email']).get().to_dict()['streak']
         if trackData is None:
             context = {
                 "message": "No history found! Create history by solving one ;)",
@@ -852,15 +891,20 @@ def history():
                 "main_page": "http://127.0.0.1:5000" 
             }
             return jsonify(context)
+        
         context = {}
         for date, data in trackData.items():
-            context[date] = f"Word: {data['word']} | Meaning: {data['meaning']} | Accuracy: {data['accuracy']}"
-        
-        context['streak'] = streak
-        context['logout'] = "http://127.0.0.1:5000/logout"
-        context['main_page'] = "http://127.0.0.1:5000"
+            context[date] = {
+                "Word": data['word'],
+                "Meaning": data['meaning'],
+                "Accuracy": data['accuracy']
+                }
+        # context['streak'] = streak
+        # context['logout'] = "http://127.0.0.1:5000/logout"
+        # context['main_page'] = "http://127.0.0.1:5000"
         return jsonify(context)
     else:
+        print('Else triggered in history')
         redirect('/logout')    
 
 @app.route("/createRoom", methods=["GET", "POST"])
@@ -905,7 +949,7 @@ def clearRoomCache():
             if data['date']!=india:
                 db.collection(u'rooms').document(id).delete()
     except:
-          pass
+        pass
                 
     return jsonify({'success': True})
 

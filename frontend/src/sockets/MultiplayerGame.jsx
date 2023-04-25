@@ -181,6 +181,8 @@ const displayResults = async () => {
         </tr>
     ));
 
+    setDisabled(false);
+
     return tableData;
 }
 
@@ -201,7 +203,9 @@ const displayResults = async () => {
             <div className='flex justify-center'>
                     {started && (
                         <>
-                            <span className='text-lg'>Time to answer - 15 seconds</span>
+                            <span className='countdown font-mono text-lg'>
+                                <span style={{"--value": 16}}></span>
+                            </span>
                         </>
                     )}
             </div>
@@ -212,7 +216,7 @@ const displayResults = async () => {
                 {started && (
                     <div className='px-5 grid grid-rows-2 my-2'>
                         <div className='my-2'>
-                            <span className='text-2xl'>{word}</span>
+                            <span className='text-2xl'>Word - {word}</span>
                         </div>
                         <div className='my-2'>
                             <form onSubmit={saveMeaning}>

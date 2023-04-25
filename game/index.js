@@ -38,7 +38,7 @@ io.on("connection", (socket) => {
 
     socket.on("start_game", (data) => {
         socket.broadcast.emit(`trigger_start_${data.roomId}`, data);
-        console.log(data);
+        console.log('Game started');
     })
 
 });

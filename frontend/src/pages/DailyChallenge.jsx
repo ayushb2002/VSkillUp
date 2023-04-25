@@ -14,6 +14,7 @@ const DailyChallenge = () => {
   const [streak, setStreak] = useState('');
   const [message, setMessage] = useState('');
   const [messageScreen, setMessageScreen] = useState(false);
+  const [disabled, setDisabled] = useState(false);
 
   useEffect(() => {
     (async ()=>{
@@ -49,6 +50,7 @@ const DailyChallenge = () => {
   const checkAnswer = async (e) => {
     e.preventDefault();
     toast.success('Submitted successfully');
+    setDisabled(true);
     const formData = new FormData();
     formData.append('email', email); 
     formData.append('submit', 'true');
@@ -65,7 +67,7 @@ const DailyChallenge = () => {
     setResult(result['accuracy']);
     setStreak(result['streak']);
     setMessageScreen(true);
-    sessionStorage.setItem('streak', sessionStorage.getItem('streak')+1);
+    sessionStorage.setItem('streak', `${parseInt(sessionStorage.getItem('streak'))+1}` );
   }
 
   return (
@@ -95,7 +97,7 @@ const DailyChallenge = () => {
                   <input type="text" name="answer" className='input input-bordered' required={true} onChange={(e) => setAnswer(e.target.value)}/>
                 </div>
                 <div className='form-control mt-5'>
-                  <button type='submit' className='btn btn-primary w-[20vw]'>Submit</button>
+                  <button type='submit' className='btn btn-primary w-[20vw]' disabled={disabled}>Submit</button>
                 </div>
               </form>
             </div>
