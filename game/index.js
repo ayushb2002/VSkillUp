@@ -39,8 +39,37 @@ io.on("connection", (socket) => {
     socket.on("start_game", (data) => {
         socket.broadcast.emit(`trigger_start_${data.roomId}`, data);
         console.log('Game started');
-    })
+    });
 
+    socket.on("singlePlayer", (data) => {
+        socket.join(data.opponent);
+        socket.broadcast.emit(`singlePlayer_${data.opponent}`, data);
+    });
+
+    socket.on("scanSinglePlayer", (data) => {
+        socket.join(data.user);
+        socket.broadcast.emit(`singlePlayer_${data.user}`, data);
+    });
+
+    socket.on("singlePlayerMessage", (data) => {
+        socket.broadcast.emit(`singlePlayerMessage_${data.accepter}`, data);
+    });
+
+    socket.on("switchChance", (data) => {
+        socket.broadcast.emit(`switchChance_${data.accepter}`, data);
+    });
+
+    socket.on("sendChallenge", (data) => {
+        socket.broadcast.emit(`sendChallenge_${data.accepter}`, data);
+    });
+
+    socket.on('disconnectUser', (data) => {
+        socket.leave(data.accepter);
+    });
+    
+    socket.on('endGame', (data) => {
+        socket.broadcast.emit(`triggerEndGame_${data.accepter}`, data);
+    })
 });
 
 server.listen(3000, () => {

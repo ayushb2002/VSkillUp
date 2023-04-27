@@ -27,27 +27,27 @@ const Settings = () => {
 
     const loadHistory = async () => {
         toast.success('Fetching history...');
-        const formData = new FormData();
-        formData.append('email', email);
-        const response = await fetch('http://127.0.0.1:5000/history', {
-            method: 'POST',
-            body: formData
-        });
+        if(history.length == 0)
+        {
+            const formData = new FormData();
+            formData.append('email', email);
+            const response = await fetch('http://127.0.0.1:5000/history', {
+                method: 'POST',
+                body: formData
+            });
 
-        const result = await response.json();
-        let dates = Object.keys(result);
-        dates.map(date => {
-            let arr = [];
-            arr.push(date);
-            arr.push(result[date]['Word']);
-            arr.push(result[date]['Meaning']);
-            arr.push(result[date]['Accuracy']);
+            const result = await response.json();
+            let dates = Object.keys(result);
+            dates.map(date => {
+                let arr = [];
+                arr.push(date);
+                arr.push(result[date]['Word']);
+                arr.push(result[date]['Meaning']);
+                arr.push(result[date]['Accuracy']);
 
-            history.push(arr);
-        });
-
-        console.log(result);
-        console.log(history);
+                history.push(arr);
+            });
+        }
     }
 
     const updateLevel = async (e) => {

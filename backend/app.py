@@ -588,6 +588,15 @@ def sentence_matching_result(word, input):
     result = corr_mat[0][:]
     return result, meaning
 
+def wordExists(word):
+    api = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
+    r = requests.get(url=api)
+    meaningDict = r.json()
+    if len(meaningDict) > 0:
+        return True
+    else:
+        return False
+
 @app.route('/dailyChallenge', methods=["GET", "POST"])
 def dailyChallenge():
     if universal_login_condition():
@@ -698,7 +707,7 @@ def dailyChallengeForWebsite():
                 streak = True
             doc_ref.set({
                 'latest': india,
-                'streak': userData['streak']+1 if streak else 0
+                'streak': userData['streak']+1 if streak else 1
             })         
             
             trackData = db.collection(u'trackDailyChallenge').document(request.form.get('email'))
@@ -1040,6 +1049,21 @@ def multiplayerStore():
                 'registered': True
             }
         return jsonify(context)
+    
+@app.route('/verifyWord', methods=['POST'])
+def verifyWord():
+    word = request.form.get('word')
+    exists = wordExists(word)
+    return jsonify({'exists': exists})
+
+@app.route('/singlePlayer', methods=['POST'])
+def singlePlayer():
+    word = request.form.get('word')
+    meaning = request.form.get('meaning')
+    result, meaning = sentence_matching_result(word, meaning)
+    _index = np.argmax(result[1:], axis=0)
+    return jsonify({'result': "{:.2f}".format(result[1:][_index]*100), 'meaning': meaning[1:][_index]})
+    
 
 if __name__ == "__main__": 
     app.run(debug=True)

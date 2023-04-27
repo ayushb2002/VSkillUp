@@ -4,6 +4,7 @@ import Footer from '../components/Footer';
 import { useParams } from 'react-router-dom';
 import io from 'socket.io-client';
 import toast from 'react-hot-toast';
+import Countdown from 'react-countdown';
 
 const MultiplayerGame = () => {
     
@@ -20,6 +21,7 @@ const MultiplayerGame = () => {
     const [disabled, setDisabled] = useState(false);
     const [finished, setFinished] = useState(false);
     const [tableData, setTableData] = useState([]);
+    const [now, setNow] = useState(Date.now());
     const [populateTable, setPopulateTable] = useState(tableData.map((row) => 
     <tr key={row[0]}>
         <td>{row[0]}</td>
@@ -77,6 +79,7 @@ const MultiplayerGame = () => {
         messages.push(`You: ${answer}`);
         setPopulate(messages.map((message, index)=> <li key={index}>{message}</li>));
         socket.emit("send_message", {message: answer, roomId: roomId, email: email});
+        setAnswer('');
     }
 
     const saveMeaning = async (e) => {
@@ -108,6 +111,7 @@ const MultiplayerGame = () => {
         e.preventDefault();
         setStarted(true);
         setFinished(false);
+        setNow(Date.now()+18000);
         messages.push(`You started the game!`);
         setPopulate(messages.map((message, index)=> <li key={index}>{message}</li>));
         socket.emit('send_message', {
@@ -142,6 +146,7 @@ const MultiplayerGame = () => {
         setStarted(true);
         setFinished(false);
         setWord(word);
+        setNow(Date.now()+16000);
         setTimeout(() => {
             setMeaning('');
             setStarted(false);
@@ -149,7 +154,7 @@ const MultiplayerGame = () => {
             toast('Loading results...');
             setTimeout(async () => {
                 console.log(await displayResults());
-            }, 3000);
+            }, 5000);
             setFinished(true);
         }, 15000);
     }
@@ -203,8 +208,8 @@ const displayResults = async () => {
             <div className='flex justify-center'>
                     {started && (
                         <>
-                            <span className='countdown font-mono text-lg'>
-                                <span style={{"--value": 16}}></span>
+                            <span className="font-mono text-xl">
+                                <Countdown date={now} intervalDelay={0} precision={3} />
                             </span>
                         </>
                     )}
@@ -262,7 +267,7 @@ const displayResults = async () => {
                             <label htmlFor="message">
                                 <span className='label-text'>Message</span>
                             </label>
-                            <input type="text" name="message" className='input input-bordered' onChange={(e) => setAnswer(e.target.value)} />
+                            <input type="text" name="message" className='input input-bordered' value={answer} onChange={(e) => setAnswer(e.target.value)} />
                         </div>
                         <div className='form-control mt-2'>
                             <button type='submit' className='btn btn-success w-[7vw]'>Send</button>

@@ -21,6 +21,7 @@ import Multiplayer from './sockets/Multiplayer';
 import MultiplayerGame from './sockets/MultiplayerGame';
 import Settings from './pages/Settings';
 import DeleteAccount from './pages/DeleteAccount';
+import OneVsOneGame from './sockets/OneVsOneGame';
 
 const router = createBrowserRouter([
   {
@@ -82,6 +83,10 @@ const router = createBrowserRouter([
   {
     path: '/deleteAccount',
     element: <DeleteAccount />,
+  },
+  {
+    path: '/singlePlayer/:accepter',
+    element: <OneVsOneGame />,
   }
 ]);
 

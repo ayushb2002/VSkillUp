@@ -67,7 +67,10 @@ const DailyChallenge = () => {
     setResult(result['accuracy']);
     setStreak(result['streak']);
     setMessageScreen(true);
-    sessionStorage.setItem('streak', `${parseInt(sessionStorage.getItem('streak'))+1}` );
+    if(result['streak'] == 'Broken')
+        sessionStorage.setItem('streak', '1');
+    else
+      sessionStorage.setItem('streak', `${parseInt(sessionStorage.getItem('streak'))+1}` );
   }
 
   return (
