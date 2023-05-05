@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import io from 'socket.io-client';
+import toast from 'react-hot-toast';
 
 const Multiplayer = () => {
     
@@ -9,6 +10,8 @@ const Multiplayer = () => {
     const [loggedIn, setLoggedIn] = useState(false);
     const [email, setEmail] = useState(sessionStorage.getItem('email'));
     const [RoomId, setRoomId] = useState('');
+    const [roomPass, setRoomPass] = useState('');
+
     useEffect(() => {
         if(sessionStorage.getItem('loggedIn') != "true")
         {
@@ -21,24 +24,62 @@ const Multiplayer = () => {
 
     }, []);
 
-    const createRoom = (e) => {
+    const createRoom = async (e) => {
         e.preventDefault();
 
-        socket.emit('join_room', {
-            roomId: RoomId,
-            user: email
-        });  
+        const formData = new FormData();
+        formData.append('roomId', `${RoomId}`);
+        formData.append('password', `${roomPass}`)
+        const response = await fetch('http://127.0.0.1:5000/joinMultiplayerRoom', {
+            method: 'POST',
+            body: formData,
+        });
 
-        window.location.href = `/multiplayer/${RoomId}`;
+        const result = await response.json();
+        if(result.success == true)
+        {
+            toast.success(result['message']);
+            socket.emit('join_room', {
+                roomId: RoomId,
+                user: email,
+                count: result['count']
+            });  
+    
+            window.location.href = `/multiplayer/${RoomId}`;
+        } 
+        else
+        {
+            toast.error(result['message']);
+        }
     }
 
-    const joinRoom = (e) => {
+    const joinRoom = async (e) => {
         e.preventDefault();
 
-        socket.emit('join_room', {
-            roomId: RoomId,
-            user: email   
+        const formData = new FormData();
+        formData.append('roomId', `${RoomId}`);
+        formData.append('password', `${roomPass}`)
+        const response = await fetch('http://127.0.0.1:5000/joinMultiplayerRoom', {
+            method: 'POST',
+            body: formData,
         });
+
+        const result = await response.json();
+        if(result.success == true)
+        {
+            toast.success(result['message']);
+            socket.emit('join_room', {
+                roomId: RoomId,
+                user: email,
+                count: result['count']
+            });  
+    
+            window.location.href = `/multiplayer/${RoomId}`;
+        } 
+        else
+        {
+            toast.error(result['message']);
+        }
 
         window.location.href = `/multiplayer/${RoomId}`;
     }
@@ -58,6 +99,7 @@ const Multiplayer = () => {
         if(result['room_id'])
         {
             setRoomId(result['room_id']);
+            setRoomPass(result['password']);
         }
         else
         {
@@ -117,10 +159,16 @@ const Multiplayer = () => {
                 
                 <form onSubmit={createRoom}>
                     <div className='form-control p-5'>
-                    <label className="label">
-                        <span className="label-text">Enter a random room ID</span>
-                    </label>
+                        <label className="label">
+                            <span className="label-text">Get a room ID</span>
+                        </label>
                         <input type="text" className='input input-bordered' value={RoomId} onChange={(e) => setRoomId(e.target.value)} />
+                    </div>
+                    <div className='form-control p-5'>
+                        <label className="label">
+                            <span className="label-text">Get a password</span>
+                        </label>
+                        <input type="text" className='input input-bordered' value={roomPass} onChange={(e) => setRoomPass(e.target.value)} />
                     </div>
                     <div className='form-control p-5 flex justify-center items-center'>
                         <button type='button' onClick={generateRoomId} className='btn btn-warning w-[18vw]'>Generate Room ID</button>
@@ -142,10 +190,16 @@ const Multiplayer = () => {
                 
                 <form onSubmit={joinRoom}>
                     <div className='form-control p-5'>
-                    <label className="label">
-                        <span className="label-text">Enter room ID</span>
-                    </label>
+                        <label className="label">
+                            <span className="label-text">Enter room ID</span>
+                        </label>
                         <input type="text" className='input input-bordered' onChange={(e) => setRoomId(e.target.value)} />
+                    </div>
+                    <div className='form-control p-5'>
+                        <label className="label">
+                            <span className="label-text">Enter room password</span>
+                        </label>
+                        <input type="password" className='input input-bordered' onChange={(e) => setRoomPass(e.target.value)} />
                     </div>
                     <div className='form-control p-5 flex justify-center items-center'>
                         <button type='submit' className='btn btn-primary w-[15vw]'>Join room</button>

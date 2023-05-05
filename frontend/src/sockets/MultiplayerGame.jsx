@@ -22,6 +22,7 @@ const MultiplayerGame = () => {
     const [finished, setFinished] = useState(false);
     const [tableData, setTableData] = useState([]);
     const [now, setNow] = useState(Date.now());
+    const [count, setCount] = useState(0);
     const [populateTable, setPopulateTable] = useState(tableData.map((row) => 
     <tr key={row[0]}>
         <td>{row[0]}</td>
@@ -44,9 +45,17 @@ const MultiplayerGame = () => {
             try
             {   
                 if(data.user)
+                {
                     messages.push(data.user);
+                    setCount(data.count);
+                    setTimeout(() => {
+                        socket.emit('sync_room_count', {count: data.count, roomId: roomId});
+                    }, 2000);
+                }
                 if(data.email && data.message)
+                {
                     messages.push(`${data.email}: ${data.message}`);
+                }
             }
             catch (err)
             {
@@ -58,20 +67,49 @@ const MultiplayerGame = () => {
         socket.on(`trigger_start_${roomId}`, (data) => {
             triggerGame(data.word);
         });
+
+        socket.on(`trigger_disconnect_room_${roomId}`, (data) => {
+            if(roomId == data.roomId)
+            {
+                socket.emit('disconnectRoom', {roomId: roomId, user:email});
+                toast('Room disbanded!');
+                window.location.href = '/game';
+            }
+        });
+
+        socket.on(`sync_room_${roomId}`, (data) => {
+            setCount(data.count);
+        });
         
     }, [socket]);
 
     const leaveRoom = async (e) => {
         e.preventDefault();
         toast('Exiting...');
-        socket.emit('disconnectRoom', {roomId: roomId, user:email});
-        const response = await fetch('http://127.0.0.1:5000/clearRoomCache', {
-            method: 'GET'
+        const formData = new FormData();
+        formData.append('roomId', `${roomId}`);
+        formData.append('email', `${email}`);
+        const response = await fetch('http://127.0.0.1:5000/leaveMultiplayerRoom', {
+            method: 'POST',
+            body: formData
         });
+
         const result = await response.json();
-        console.log(result);
-        toast.success('Exited!');
-        window.location.href = '/game';
+        
+        if(result['success'] == true)
+        {
+            if(result['owner'] == true)
+                socket.emit('triggerDisconnectRoom', {roomId: roomId, user:email});
+            else
+                socket.emit('disconnectRoom', {roomId: roomId, user:email});
+
+            toast.success('Exited!');
+            window.location.href = '/game';
+        }
+        else
+        {
+            toast.error('Error! Could not exit!');
+        }
     }
 
     const sendMessage = (e) => {
@@ -111,6 +149,8 @@ const MultiplayerGame = () => {
         e.preventDefault();
         setStarted(true);
         setFinished(false);
+        setTableData([]);
+        setPopulateTable('');
         setNow(Date.now()+18000);
         messages.push(`You started the game!`);
         setPopulate(messages.map((message, index)=> <li key={index}>{message}</li>));
@@ -119,8 +159,12 @@ const MultiplayerGame = () => {
             roomId: roomId, 
             email: email
         });
+        const formData = new FormData();
+        formData.append('mode', 1);
+        formData.append('roomId', roomId);
         const response = await fetch('http://127.0.0.1:5000/multiplayerGame', {
-            method: 'GET'
+            method: 'POST',
+            body: formData
         });
 
         const result = await response.json();
@@ -136,6 +180,8 @@ const MultiplayerGame = () => {
             setWord('');
             toast('Loading results...');
             setTimeout(async () => {
+                setPopulateTable('');
+                setTableData([]);
                 console.log(await displayResults());
             }, 3000);
             setFinished(true);
@@ -146,6 +192,8 @@ const MultiplayerGame = () => {
         setStarted(true);
         setFinished(false);
         setWord(word);
+        setTableData([]);
+        setPopulateTable('');
         setNow(Date.now()+16000);
         setTimeout(() => {
             setMeaning('');
@@ -153,6 +201,8 @@ const MultiplayerGame = () => {
             setWord('');
             toast('Loading results...');
             setTimeout(async () => {
+                setPopulateTable('');
+                setTableData([]);
                 console.log(await displayResults());
             }, 5000);
             setFinished(true);
@@ -162,6 +212,7 @@ const MultiplayerGame = () => {
 const displayResults = async () => {
     const formData = new FormData();
     formData.append('roomId', roomId);
+    formData.append('mode', 2);
     const response2 = await fetch('http://127.0.0.1:5000/multiplayerGame', {
         method: 'POST',
         body: formData
@@ -169,6 +220,7 @@ const displayResults = async () => {
 
     const result2 = await response2.json();
     setTableData([]);
+    setPopulateTable('');
     let keys = Object.keys(result2);
     keys.map(key => {
         let arr = [];
@@ -213,6 +265,7 @@ const displayResults = async () => {
                             </span>
                         </>
                     )}
+                    <span className='font-mono text-xl px-5'>Online - {count}</span>
             </div>
             <div className='flex justify-end'>
                 <button onClick={leaveRoom} className='btn'>Leave</button>

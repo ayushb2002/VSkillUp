@@ -21,7 +21,7 @@ io.on("connection", (socket) => {
 
     socket.on("join_room", (data) => {
         socket.join(data.roomId);
-        socket.broadcast.emit(`receive_message_${data.roomId}`, {user: `${data.user} has joined!`});
+        socket.broadcast.emit(`receive_message_${data.roomId}`, {user: `${data.user} has joined!`, count: data.count});
         console.log(`${data.user} joined room - ${data.roomId}`);
     });
 
@@ -34,6 +34,17 @@ io.on("connection", (socket) => {
         socket.broadcast.emit(`receive_message_${data.roomId}`, {user: `${data.user} has left!`});
         socket.leave(data.roomId);
         console.log(`${data.user} left room ${data.roomId}`);
+    });
+
+    socket.on("triggerDisconnectRoom", (data) => {
+        socket.broadcast.emit(`trigger_disconnect_room_${data.roomId}`, {roomId: data.roomId});
+        socket.leave(data.roomId);
+        console.log(`${data.user} left room ${data.roomId}`);
+    });
+
+    socket.on("sync_room_count", (data) => {
+        socket.broadcast.emit(`sync_room_${data.roomId}`, {roomId: data.roomId, count: data.count});
+        console.log(data);
     });
 
     socket.on("start_game", (data) => {

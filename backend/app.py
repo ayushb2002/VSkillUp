@@ -917,7 +917,7 @@ def history():
         redirect('/logout')    
 
 @app.route("/createRoom", methods=["GET", "POST"])
-def oneOnOneChallenge():
+def createRoom():
     if universal_login_condition() or request.form.get('email'):
         if request.form.get('email'):
             session['email'] = request.form.get('email')
@@ -941,6 +941,9 @@ def oneOnOneChallenge():
                 'ROOM_ID': ROOM_ID,
                 'PASSWORD': PASSWORD 
             })
+            db.collection(u'multiplayer').document(ROOM_ID).set({
+                'count': 0
+            })
         else:
             return redirect('/createRoom')
         return jsonify(context)
@@ -962,26 +965,89 @@ def clearRoomCache():
                 
     return jsonify({'success': True})
 
-@app.route('/multiplayerGame', methods=['GET', 'POST'])
-def multiplayerGame():
-    if request.method == 'GET':
-        word = generate_random_word(level='Intermediate')
-        return jsonify({"word":word})
-    else:
+@app.route('/joinMultiplayerRoom', methods=['POST'])
+def joinMultiplayerRoom():
+    if request.method == 'POST':
         roomId = request.form.get('roomId')
-        doc_ref = db.collection(u'multiplayer').document(roomId).collection(u'players').stream()
-        if not doc_ref:
+        password = request.form.get('password')
+        try:
+            room = db.collection(u'rooms').document(roomId).get().to_dict()
+            if password != room['PASSWORD']:
+                context = {
+                    'success': False,
+                    'message': 'Room Id does not exist or incorrect password'
+                }
+                return jsonify(context)
+        except Exception as ex:
+            print(ex)
             context = {
-                'error': 'Could not find the room!'
+                'success': False,
+                'message': 'Room Id does not exist'
             }
             return jsonify(context)
         
-        context = {}
-        for doc in doc_ref:
-            doc_items = doc.to_dict()
-            context[doc.id] = doc_items
+        doc_ref = db.collection(u'multiplayer').document(roomId)
+        room_info = doc_ref.get().to_dict()
+        doc_ref.update({
+            'count': firestore.Increment(1),
+        })
+        
+        return jsonify({
+            'success': True,
+            'message': 'Joined room!',
+            'count': room_info['count']+1,
+        })
+        
+@app.route('/leaveMultiplayerRoom', methods=['POST'])
+def leaveMultiplayerRoom():
+    try:
+        roomId = request.form.get('roomId')
+        email = request.form.get('email')
+        room_ref = db.collection(u'rooms').document(roomId).get().to_dict()
+        doc_ref = db.collection(u'multiplayer').document(roomId)
+        doc_ref.update({
+                'count': firestore.Increment(-1),
+            })
+        
+        if room_ref['owner'] == email:
+            db.collection(u'rooms').document(roomId).delete()
+            db.collection(u'multiplayer').document(roomId).delete()
+            
+        return jsonify({
+            'success': True,
+            'owner': True if room_ref.get('owner') == email else False
+        })
+    except Exception as e:
+        print(e)
+        return jsonify({
+            'success': False
+        })
 
-        return jsonify(context)
+@app.route('/multiplayerGame', methods=['POST'])
+def multiplayerGame():
+    if request.method == 'POST':
+        mode = request.form.get('mode')
+        roomId = request.form.get('roomId')
+        if mode == '1':
+            word = generate_random_word(level='Intermediate')
+            db.collection(u'multiplayer').document(roomId).set({
+                'word': word
+            }, merge=True)
+            return jsonify({"word":word})
+        elif mode == '2':
+            doc_ref = db.collection(u'multiplayer').document(roomId).collection(u'players').stream()
+            if not doc_ref:
+                context = {
+                    'error': 'Could not find the room!'
+                }
+                return jsonify(context)
+            
+            context = {}
+            for doc in doc_ref:
+                doc_items = doc.to_dict()
+                context[doc.id] = doc_items
+
+            return jsonify(context)
         
 
 @app.route('/multiplayerStore', methods=['POST'])
@@ -1003,13 +1069,13 @@ def multiplayerStore():
             new_doc_ref.set({
                 'answer': answer,
                 'result': "{:.2f}".format(result[1:][_index]*100)
-                
             })
             
             context = {
                 'user': user,
                 'result': "{:.2f}".format(result[1:][_index]*100),
-                'registered': True
+                'registered': True,
+                'meaning': meaning
             }
             return jsonify(context)
         if user in data.keys():
@@ -1063,7 +1129,6 @@ def singlePlayer():
     result, meaning = sentence_matching_result(word, meaning)
     _index = np.argmax(result[1:], axis=0)
     return jsonify({'result': "{:.2f}".format(result[1:][_index]*100), 'meaning': meaning[1:][_index]})
-    
 
 if __name__ == "__main__": 
     app.run(debug=True)
