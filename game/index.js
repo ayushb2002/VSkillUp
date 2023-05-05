@@ -44,7 +44,6 @@ io.on("connection", (socket) => {
 
     socket.on("sync_room_count", (data) => {
         socket.broadcast.emit(`sync_room_${data.roomId}`, {roomId: data.roomId, count: data.count});
-        console.log(data);
     });
 
     socket.on("start_game", (data) => {

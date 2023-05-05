@@ -123,7 +123,7 @@ const OneVsOneGame = () => {
 
             const result = await response.json();
 
-            if(result['exists'])
+            if(result['exists']==true)
             {
                 socket.emit('sendChallenge', {
                     word: challenge,

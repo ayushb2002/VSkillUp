@@ -1120,15 +1120,20 @@ def multiplayerStore():
 def verifyWord():
     word = request.form.get('word')
     exists = wordExists(word)
+    print(exists)
     return jsonify({'exists': exists})
 
 @app.route('/singlePlayer', methods=['POST'])
 def singlePlayer():
     word = request.form.get('word')
     meaning = request.form.get('meaning')
-    result, meaning = sentence_matching_result(word, meaning)
-    _index = np.argmax(result[1:], axis=0)
-    return jsonify({'result': "{:.2f}".format(result[1:][_index]*100), 'meaning': meaning[1:][_index]})
+    try:
+        result, meaning = sentence_matching_result(word, meaning)
+        _index = np.argmax(result[1:], axis=0)
+        return jsonify({'result': "{:.2f}".format(result[1:][_index]*100), 'meaning': meaning[1:][_index]})
+    except Exception as e:
+        print(e)
+        return jsonify({'result': "0", 'meaning': "None"})
 
 if __name__ == "__main__": 
     app.run(debug=True)
