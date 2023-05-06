@@ -38,10 +38,19 @@ const OneVsOneGame = () => {
             setChance(1);
         }
 
-        socket.on(`triggerEndGame_${accepter}`, (data) => {
+        socket.on(`triggerEndGame_${accepter}`, async (data) => {
             if(data.accepter == accepter)
             {
                 toast('User has left the game! Terminating...');
+                const formData = new FormData();
+                formData.append('creator', email);
+                const response = await fetch('http://127.0.0.1:5000/singlePlayerQuit', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                console.log(result);
                 setTimeout(() => {
                     socket.emit('disconnectUser', {
                         user: email,
@@ -72,13 +81,32 @@ const OneVsOneGame = () => {
 
     }, [socket]);
 
-    const endGame = (e) => {
+    const endGame = async (e) => {
         e.preventDefault();
         toast.success('Closing game...');
+
+        const formData = new FormData();
+        formData.append('creator', email);
+        const response = await fetch('http://127.0.0.1:5000/singlePlayerQuit', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        if(result['success'] == true)
+        {
+            toast.success('Game owner leaving!');
+        }
+        else
+        {
+            toast.success('Game player leaving!');
+        }
+
         socket.emit(`endGame`, {
             accepter: accepter,
             user: email
         });
+
         setTimeout(() => {
             socket.emit('disconnectUser', {
                 user: email,

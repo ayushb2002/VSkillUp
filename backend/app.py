@@ -953,15 +953,16 @@ def createRoom():
 @app.route('/clearRoomCache')
 def clearRoomCache():
     rooms = db.collection(u'rooms').stream()
-    if rooms is None or not rooms:
+    multiplayer = db.collection(u'multiplayer').stream()
+    if (rooms is None or not rooms) and (multiplayer is None or not multiplayer):
         return jsonify({'success': True})
-    india = datetime.now(timezone("Asia/Kolkata")).strftime('%Y-%m-%d')
     try:
         for id, data in rooms.items():
-            if data['date']!=india:
-                db.collection(u'rooms').document(id).delete()
+            db.collection(u'rooms').document(id).delete()
+        for id, data in multiplayer.items():
+            db.collection(u'multiplayer').document(id).delete()
     except:
-        pass
+        return jsonify({'success': False})
                 
     return jsonify({'success': True})
 
@@ -1122,6 +1123,64 @@ def verifyWord():
     exists = wordExists(word)
     print(exists)
     return jsonify({'exists': exists})
+
+@app.route('/singlePlayerRegister', methods=['POST'])
+def singlePlayerRegister():
+    creator = request.form.get('email')
+    try:
+        doc_ref = db.collection(u'singlePlayer').document(creator).get().to_dict()
+        if not doc_ref:
+            db.collection(u'singlePlayer').document(creator).set({
+                "creator": creator,
+                "count": 1,
+                "player": ""
+            })
+        else:
+            db.collection(u'singlePlayer').document(creator).update({
+                "creator": creator,
+                "count": 1,
+                "player": ""
+            })
+    except Exception as e:
+        print(e)
+        db.collection(u'singlePlayer').document(creator).set({
+            "creator": creator,
+            "count": 1,
+            "player": ""
+        })
+        
+    return jsonify({
+        "success": True
+    })
+    
+@app.route('/singlePlayerJoin', methods=['POST'])
+def singlePlayerJoin():
+    creator = request.form.get('creator')
+    player = request.form.get('email')
+    try:
+        doc_ref = db.collection(u'singlePlayer').document(creator).get().to_dict()
+        if doc_ref.get('creator') == creator and (doc_ref.get('player') == '' or doc_ref.get('count') == 1):
+            db.collection(u'singlePlayer').document(creator).update({
+                "player": player,
+                "count": 2
+            })
+        else:
+            return jsonify({'success': False, 'message': 'User already in a game!'})
+    except Exception as e:
+        print(e)    
+        return jsonify({'success': False, 'message': 'User has not started the game yet!'})
+    
+    return jsonify({"success": True})
+
+@app.route('/singlePlayerQuit', methods=['POST'])
+def singlePlayerQuit():
+    creator = request.form.get('creator')
+    try:
+        db.collection(u'singlePlayer').document(creator).delete()
+        return jsonify({'success': True})
+    except Exception as e:
+        print(e)
+        return jsonify({'success': False, 'message': 'Room does not exist!'})
 
 @app.route('/singlePlayer', methods=['POST'])
 def singlePlayer():

@@ -22,52 +22,69 @@ const OneVsOne = () => {
             setLoggedIn(true);
         }
 
-        // socket.on(`singlePlayer_${opponent}`, (data) => {
-        //     if(data.sender)
-        //     {
-        //         window.location.href = `singlePlayer/${data.opponent}`;
-        //     }
-        // });
-
-        // socket.on(`singlePlayer_${email}`, (data) => {
-        //     if(data.receiver)
-        //     {
-        //         window.location.href = `singlePlayer/${data.user}`;
-        //     }
-        // });
-
     }, [socket]);
 
-    const setChallenge = (e) => {
+    const setChallenge = async (e) => {
         e.preventDefault();
         toast('Challenging the opponent!');
         setDisable(true);
-        setTimeout(() => {
-            socket.emit('singlePlayer', {
-                opponent: opponent,
-                user: email,
-                sender: true,
-                receiver: false
-            });
+        const formData = new FormData();
+        formData.append('creator', opponent);
+        formData.append('email', email);
+        const response = await fetch('http://127.0.0.1:5000/singlePlayerJoin', {
+            method: 'POST',
+            body: formData
+        });
 
-            let route = opponent.split('@')[0];
-            window.location.href = `/singlePlayer/${route}`;
-        }, 1000);
+        const result = await response.json();
+
+        if (result['success'] == true) {
+            setTimeout(() => {
+                socket.emit('singlePlayer', {
+                    opponent: opponent,
+                    user: email,
+                    sender: true,
+                    receiver: false
+                });
+                
+                let route = opponent.split('@')[0];
+                window.location.href = `/singlePlayer/${route}`;
+            }, 1000);
+        }
+        else
+        {
+            toast.error(result['message']);
+        }
     }
 
-    const scanForChallenge = (e) => {
+    const scanForChallenge = async (e) => {
         e.preventDefault();
         toast('Scanning for challenges');
         setDisable(true);
-        setTimeout(() => {
-            socket.emit('scanSinglePlayer', {
-                user: email,
-                sender: false,
-                receiver: true
-            });
-            let route = email.split('@')[0];
-            window.location.href = `/singlePlayer/${route}`;
-        }, 1000);
+        const formData = new FormData();
+        formData.append('email', email);
+        const response = await fetch('http://127.0.0.1:5000/singlePlayerRegister', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        if(result['success'] == true)
+        {
+            setTimeout(() => {
+                socket.emit('scanSinglePlayer', {
+                    user: email,
+                    sender: false,
+                    receiver: true
+                });
+                let route = email.split('@')[0];
+                window.location.href = `/singlePlayer/${route}`;
+            }, 1000);
+        }
+        else
+        {
+            toast.error('Could not create the game!');
+        }
     }
 
   return (
