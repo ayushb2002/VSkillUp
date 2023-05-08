@@ -99,10 +99,14 @@ const MultiplayerGame = () => {
         if(result['success'] == true)
         {
             if(result['owner'] == true)
+            {    
                 socket.emit('triggerDisconnectRoom', {roomId: roomId, user:email});
+            }
             else
+            {
+                socket.emit('sync_room_count', {count: count-1, roomId: roomId});
                 socket.emit('disconnectRoom', {roomId: roomId, user:email});
-
+            }
             toast.success('Exited!');
             window.location.href = '/game';
         }
@@ -122,8 +126,8 @@ const MultiplayerGame = () => {
 
     const saveMeaning = async (e) => {
         e.preventDefault();
-        toast.success('Answer received!');
         setDisabled(true);
+        toast.success('Answer received!');
         if(meaning == '')
         {
             setMeaning('$');
@@ -183,9 +187,9 @@ const MultiplayerGame = () => {
                 setPopulateTable('');
                 setTableData([]);
                 console.log(await displayResults());
-            }, 3000);
+            }, 5000);
             setFinished(true);
-        }, 15000);
+        }, 20000);
     }
 
     const triggerGame = (word) => {
@@ -206,7 +210,7 @@ const MultiplayerGame = () => {
                 console.log(await displayResults());
             }, 5000);
             setFinished(true);
-        }, 15000);
+        }, 20000);
     }
 
 const displayResults = async () => {
