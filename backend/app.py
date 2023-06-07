@@ -8,7 +8,6 @@ from google_auth_oauthlib.flow import Flow
 from pip._vendor import cachecontrol
 import google.auth.transport.requests
 from google.cloud import firestore
-from flask_bcrypt import Bcrypt
 import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
@@ -20,6 +19,8 @@ import random
 from flask_cors import CORS
 import json
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash
 
 load_dotenv()
 app = Flask(__name__) 
@@ -30,13 +31,13 @@ app.config["SESSION_COOKIE_SAMESITE"] = "None"
 app.config["SESSION_COOKIE_SECURE"] = True
 Session(app)
 CORS(app, supports_credentials=True)
-bcrypt = Bcrypt(app) 
+#bcrypt = Bcrypt(app) 
 app.secret_key = os.environ.get("SECRET_KEY")
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1" 
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 client_secrets_file = os.path.join(pathlib.Path(__file__).parent, "client-secret.json")  
-db = firestore.Client(project='vskillup')
+db = firestore.Client(project='vskillup-final')
 
 words = pd.read_csv("model/words.csv")
 
@@ -126,7 +127,7 @@ def index():
 def protected_area():
     doc_ref = db.collection(u'users').document(session['email']).get().to_dict()
     if doc_ref is None:
-        writeRegister(session['given_name'], session['family_name'], session['email'], bcrypt.generate_password_hash("auth-via-google"))
+        writeRegister(session['given_name'], session['family_name'], session['email'], generate_password_hash("auth-via-google"))
 
     return redirect('/welcome')
 
@@ -159,7 +160,7 @@ def register():
         email = request.form.get('email')
         pwd = request.form.get('password')
         print(first_name, last_name, email, pwd)
-        hash_pwd = bcrypt.generate_password_hash(pwd)
+        hash_pwd = generate_password_hash(pwd)
 
         users_ref = db.collection(u'users')
         
@@ -210,7 +211,7 @@ def login():
                         "main_page": "http://127.0.0.1:5000/"
                     }
                 return jsonify(context)
-            if bcrypt.check_password_hash(data['password'], pwd):
+            if check_password_hash(data['password'], pwd):
                 session['given_name'] = data['first_name']
                 session['family_name'] = data['last_name']
                 session['email'] = data['email']
@@ -533,7 +534,7 @@ def deleteAccount(email):
                         context = {"error": "User does not exist!"}
                         return jsonify(context)
                     
-                    if bcrypt.check_password_hash(data['password'], pwd):
+                    if check_password_hash(data['password'], pwd):
                         try:
                             db.collections(u'users').document(email).delete()
                             if request.form.get('email'):
